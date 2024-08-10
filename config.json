@@ -1,4 +1,10 @@
 {
     "start_id": 103773,
-    "end_id": 103775
+    "end_id": 103774,
+    "base_url": "https://www.acb.com/partido/estadisticas/id/",
+    "output_file": "estadisticas_todos_partidos.csv",
+    "max_retries": 3,
+    "retry_delay": 5,
+    "user_agent": "BasketballStatsScraper/1.0",
+    "rate_limit": 1
 }

@@ -1,1 +1,7 @@
+aiohttp
+asyncio
+beautifulsoup4
 pandas
+requests
+tenacity
+tqdm
