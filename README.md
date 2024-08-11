@@ -1,71 +1,88 @@
 
 # Basketball Stats Scraper
 
-Este repositorio contiene un web scraper diseñado para extraer datos de partidos de baloncesto desde el sitio web de la ACB. El scraper recopila estadísticas detalladas de cada partido y las guarda en un archivo CSV para su posterior análisis.
+## Descripción
+
+**Basketball Stats Scraper** es un proyecto de scraping diseñado para recopilar estadísticas detalladas de partidos de baloncesto desde la web de ACB. El scraper recorre un rango específico de identificadores de partidos, descarga la información disponible y la almacena en archivos CSV para su posterior análisis.
+
+El proyecto utiliza tecnologías asíncronas para optimizar la velocidad y eficiencia del scraping, respetando las limitaciones impuestas por el servidor web objetivo.
 
 ## Estructura del Proyecto
 
-- **`config.json`**: Archivo de configuración que define los parámetros clave para la ejecución del scraper, como el rango de IDs de partidos a extraer, el URL base, y las opciones de manejo de errores y límite de velocidad.
-  
-- **`main.py`**: El punto de entrada principal para ejecutar el scraper. Este script se encarga de coordinar la ejecución del scraper y manejar los errores que puedan surgir durante la extracción de datos.
+- **`config.json`**: Archivo de configuración donde se definen los parámetros clave del scraping, incluyendo el rango de IDs de partidos a recolectar, URLs base, archivos de salida, y parámetros de control como límites de tasa y reintentos.
 
-- **`scraper.py`**: Contiene la lógica principal del scraper, incluyendo la extracción de datos de la página web y la manipulación de las estadísticas de los partidos.
+- **`scraper.py`**: Módulo principal del scraper que implementa la lógica de recolección de datos. Utiliza `aiohttp` y `asyncio` para manejar solicitudes de manera asíncrona, con soporte para reintentos y límites de tasa.
 
-- **`logger.py`**: Módulo que configura y maneja el sistema de logging para capturar información sobre la ejecución del scraper, facilitando la detección y resolución de problemas.
+- **`main.py`**: Punto de entrada del proyecto. Ejecuta el scraper utilizando la configuración especificada en `config.json`.
 
-- **`estadisticas_todos_partidos.csv`**: Archivo de salida generado por el scraper que contiene todas las estadísticas de los partidos extraídos.
+- **`logger.py`**: Módulo para la configuración del sistema de logging, permitiendo el registro detallado de eventos durante la ejecución del scraper.
 
-## Configuración
+- **`estadisticas_todos_partidos.csv`**: Archivo CSV generado por el scraper que contiene las estadísticas agregadas de todos los partidos dentro del rango especificado.
 
-El archivo `config.json` contiene las siguientes configuraciones clave:
+- **`estadisticas_partido.csv`**: Archivo CSV que contiene las estadísticas detalladas de un partido individual, utilizado principalmente para pruebas y validaciones.
 
-- **`start_id`**: ID del primer partido a extraer.
-- **`end_id`**: ID del último partido a extraer.
-- **`base_url`**: URL base del sitio web de la ACB desde donde se extraerán los datos.
-- **`output_file`**: Nombre del archivo CSV donde se guardarán las estadísticas extraídas.
-- **`max_retries`**: Número máximo de reintentos en caso de que una solicitud falle.
-- **`retry_delay`**: Tiempo de espera (en segundos) antes de reintentar una solicitud fallida.
-- **`user_agent`**: User-Agent que se utilizará para las solicitudes HTTP.
-- **`rate_limit`**: Tiempo mínimo (en segundos) entre solicitudes para respetar las políticas de uso del sitio web.
+- **`requirements.txt`**: Archivo que lista las dependencias necesarias para ejecutar el proyecto. Estas incluyen bibliotecas para scraping, manejo de datos, y control de flujo asíncrono.
 
-## Uso
+## Requisitos
 
-1. **Configurar el scraper**: Asegúrese de que las configuraciones en `config.json` están ajustadas a sus necesidades.
-
-2. **Ejecutar el scraper**: Desde la terminal, puede ejecutar el scraper utilizando el siguiente comando:
-
-   ```bash
-   python main.py
-   ```
-
-3. **Revisar el archivo de salida**: Una vez que el scraper haya terminado, todas las estadísticas de los partidos estarán disponibles en el archivo `estadisticas_todos_partidos.csv`.
-
-## Dependencias
-
-Este proyecto requiere Python 3.7 o superior. Las dependencias necesarias están especificadas en el archivo `requirements.txt` (si está disponible). Para instalarlas, ejecute:
+Para ejecutar este proyecto, necesitarás tener instalado Python 3.8 o superior, junto con las siguientes dependencias que se pueden instalar usando `pip`:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Registro de Logs
+### Dependencias principales
 
-El scraper genera un archivo de logs que documenta la ejecución del programa. Esto es útil para depurar problemas o para verificar que los datos se han extraído correctamente. Los logs incluyen información sobre:
+- `aiohttp`: Manejo de solicitudes HTTP asíncronas.
+- `asyncio`: Biblioteca estándar para concurrencia asíncrona en Python.
+- `beautifulsoup4`: Para el parseo de HTML.
+- `pandas`: Manipulación y análisis de datos.
+- `requests`: Biblioteca simple para realizar solicitudes HTTP.
+- `tenacity`: Gestión de reintentos con lógica customizable.
+- `tqdm`: Progreso de procesos de scraping en la consola.
 
-- Errores de red y reintentos
-- Partidos procesados con éxito
-- Problemas específicos con la extracción de datos
+## Uso
 
-## Mejoras Futuras
+### Configuración
 
-- Implementar la extracción de más estadísticas y detalles adicionales de cada partido.
-- Optimización del manejo de errores para casos específicos.
-- Soporte para más formatos de salida (ej. JSON, bases de datos).
+Antes de ejecutar el scraper, asegúrate de configurar los parámetros en `config.json`. Aquí se define el rango de partidos a recolectar, así como otras configuraciones críticas como el nombre del archivo de salida y el user-agent.
+
+```json
+{
+    "start_id": 103773,
+    "end_id": 103850,
+    "base_url": "https://www.acb.com/partido/estadisticas/id/",
+    "output_file": "estadisticas_todos_partidos.csv",
+    "output_file_game": "estadisticas_partido.csv",
+    "max_retries": 3,
+    "retry_delay": 5,
+    "user_agent": "BasketballStatsScraper/1.0",
+    "rate_limit": 1
+}
+```
+
+### Ejecución
+
+Para iniciar el proceso de scraping, ejecuta el siguiente comando:
+
+```bash
+python main.py
+```
+
+El scraper comenzará a recolectar datos de los partidos dentro del rango especificado y los almacenará en los archivos de salida definidos en la configuración.
+
+### Logging
+
+El proyecto utiliza el módulo `logger.py` para registrar eventos importantes, como el inicio y fin del scraping, errores y reintentos. Los logs se almacenan en la consola y se pueden redirigir a un archivo si se desea.
+
+## Consideraciones
+
+- **Rate Limiting**: El scraper respeta un límite de tasa (`rate_limit`) para evitar sobrecargar el servidor destino. Puedes ajustar este parámetro en `config.json`.
+
+- **Reintentos**: En caso de fallas temporales en la red o respuestas inesperadas, el scraper intentará realizar un máximo de 3 reintentos (`max_retries`) antes de abandonar un partido.
+
+- **Modularidad**: El proyecto está diseñado de manera modular para facilitar futuras ampliaciones o modificaciones, como la adaptación a nuevas fuentes de datos o el ajuste de las estrategias de recolección.
 
 ## Contribuciones
 
-Las contribuciones son bienvenidas. Por favor, envíe un pull request con una descripción clara de los cambios propuestos.
-
-## Licencia
-
-Este proyecto está licenciado bajo la Licencia MIT. Consulte el archivo LICENSE para más detalles.
+Las contribuciones al proyecto son bienvenidas. Si encuentras un bug o tienes una sugerencia para mejorar el scraper, no dudes en abrir un issue o enviar un pull request.
