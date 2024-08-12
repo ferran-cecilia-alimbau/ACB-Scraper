@@ -2,3 +2,6 @@ __pycache__/
 logs/
 estadisticas_todos_partidos.csv
 estadisticas_partido.csv
+.venv/
+estadisticas_equipos_por_partido.csv/
+calculate_team_stats.py

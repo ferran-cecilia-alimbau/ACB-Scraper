@@ -157,8 +157,8 @@ def parse_table(table: BeautifulSoup, team_name: str, game_id: int) -> List[Dict
     headers = [
         "id_partido", "equipo", "titular", "dorsal", "nombre", "minutos", "puntos",
         "T2", "T2 %", "T3", "T3 %", "T1", "T1 %", "rebotes_defensivos", "rebotes_ofensivos",
-        "rebotes_totales", "asistencias", "robos", "perdidas", "C", "tapones_favor",
-        "tapones_contra", "mates", "faltas_cometidas", "faltas_recibidas", "+/-", "V"
+        "rebotes_totales", "asistencias", "robos", "perdidas", "tapones_favor",
+        "tapones_contra", "mates", "faltas_cometidas", "faltas_recibidas", "+/-", "valoración"
     ]
 
     for row in rows[2:-4]:  # Ignoramos las filas de cabecera y totales
@@ -222,14 +222,13 @@ def create_player_dict(player_data: List[str], game_id: int, team_name: str) -> 
         "asistencias": player_data[12],
         "robos": player_data[13],
         "perdidas": player_data[14],
-        "C": player_data[15],
         "tapones_favor": player_data[16],
         "tapones_contra": player_data[17],
         "mates": player_data[18],
         "faltas_cometidas": player_data[19],
         "faltas_recibidas": player_data[20],
         "+/-": player_data[21],
-        "V": player_data[22]
+        "valoración": player_data[22]
     })
 
     # Si el jugador no jugó (minutos vacíos), rellenar con ceros manteniendo el formato
