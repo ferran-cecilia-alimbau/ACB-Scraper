@@ -20,7 +20,8 @@ logs/
 # Chrome webdriver
 chromedriver.exe
 chromedriver
-EOL
+
+# Files
 __pycache__/
 logs/
 estadisticas_todos_partidos.csv
@@ -32,3 +33,11 @@ calculate_team_stats.py
 web (test)/
 shot graph/
 extract_play_by_play.py
+
+# PySpark output directories
+resultados_avanzados_por_partido.csv/
+*.crc
+
+# Analysis files
+performance_improvements.md
+improved_performance.md
