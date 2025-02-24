@@ -1,0 +1,68 @@
+{
+    "start_id": 103773,
+    "end_id": 103850,
+    "base_url": "https://www.acb.com/partido/estadisticas/id/",
+    "output_file": "estadisticas_todos_partidos.csv",
+    "output_file_game": "estadisticas_partido.csv",
+    "output_file_team_totals": "estadisticas_equipos_por_partido.csv",
+    "output_file_player_profiles": "perfiles_jugadores.csv",
+    "max_retries": 3,
+    "retry_delay": 5,
+    "user_agent": "BasketballStatsScraper/1.0",
+    "rate_limit": 1,
+    "id_columns": {
+        "output_file": ["id_partido", "player_id", "equipo", "nombre"],
+        "output_file_game": ["id_partido"],
+        "output_file_team_totals": ["id_partido", "equipo"],
+        "output_file_player_profiles": ["player_id"]
+    },
+        "columns_players": [
+        "id_partido", "player_id", "equipo", "es_titular", "dorsal", "nombre", "minutos",
+        "puntos", "t2_intentados", "t2_anotados", "t2_porcentaje",
+        "t3_intentados", "t3_anotados", "t3_porcentaje",
+        "tl_intentados", "tl_anotados", "tl_porcentaje",
+        "rebotes_defensivos", "rebotes_ofensivos", "rebotes_totales",
+        "asistencias", "robos", "perdidas", "tapones_favor",
+        "tapones_contra", "mates", "faltas_cometidas", "faltas_recibidas",
+        "plus_minus", "valoracion"
+    ],
+    "columns_games": [
+        "id_partido", "jornada", "fecha", "hora", "pabellon", "publico",
+        "arbitro1", "arbitro2", "arbitro3",
+        "resultado_local", "resultado_visitante",
+        "local", "visitante",
+        "parciales_local", "parciales_visitante"
+    ],
+    "columns_team_totals": [
+    "id_partido", 
+    "equipo", 
+    "minutos",
+    "puntos",
+    "t2_encestados", 
+    "t2_intentados", 
+    "t2_porcentaje",
+    "t3_encestados", 
+    "t3_intentados", 
+    "t3_porcentaje",
+    "tl_encestados", 
+    "tl_intentados", 
+    "tl_porcentaje",
+    "rebotes_totales",
+    "rebotes_defensivos",
+    "rebotes_ofensivos",
+    "asistencias",
+    "robos",
+    "perdidas",
+    "tapones_favor",
+    "tapones_contra",
+    "mates",
+    "faltas_cometidas",
+    "faltas_recibidas",
+    "+/-",
+    "valoracion"
+],
+    "columns_player_profiles": [
+        "player_id", "nombre", "nombre_completo", "equipo", "dorsal", "posicion", "altura",
+        "ciudad_nacimiento", "pais_nacimiento", "fecha_nacimiento", "edad", "nacionalidad", "licencia"
+    ]
+}
