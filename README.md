@@ -1,4 +1,3 @@
-
 # Basketball Stats Scraper
 
 ## Descripción
@@ -11,17 +10,27 @@ El proyecto utiliza tecnologías asíncronas para optimizar la velocidad y efici
 
 - **`config.json`**: Archivo de configuración donde se definen los parámetros clave del scraping, incluyendo el rango de IDs de partidos a recolectar, URLs base, archivos de salida, y parámetros de control como límites de tasa y reintentos.
 
+- **`main.py`**: Punto de entrada del proyecto. Ejecuta el scraper utilizando la configuración especificada en `config.json`.
+
 - **`scraper.py`**: Módulo principal del scraper que implementa la lógica de recolección de datos. Utiliza `aiohttp` y `asyncio` para manejar solicitudes de manera asíncrona, con soporte para reintentos y límites de tasa.
 
-- **`main.py`**: Punto de entrada del proyecto. Ejecuta el scraper utilizando la configuración especificada en `config.json`.
+- **`parsers.py`**: Contiene funciones para extraer y transformar datos de las páginas HTML obtenidas, como información de partidos, estadísticas de jugadores y perfiles de jugadores.
+
+- **`http_client.py`**: Implementa un cliente HTTP asíncrono con funcionalidades avanzadas como rate limiting adaptativo y manejo de concurrencia.
+
+- **`utils.py`**: Proporciona utilidades y funciones auxiliares para tareas comunes como limpieza de datos y normalización.
+
+- **`constants.py`**: Centraliza valores constantes, URLs, selectores HTML y mapeos utilizados en todo el proyecto.
 
 - **`logger.py`**: Módulo para la configuración del sistema de logging, permitiendo el registro detallado de eventos durante la ejecución del scraper.
 
-- **`estadisticas_todos_partidos.csv`**: Archivo CSV generado por el scraper que contiene las estadísticas agregadas de todos los partidos dentro del rango especificado.
+- **`get_match_ids/get_match_ids.py`**: Script independiente para extraer IDs de partidos de la web de ACB y guardarlos en `match_ids.json`.
 
-- **`estadisticas_partido.csv`**: Archivo CSV que contiene las estadísticas detalladas de un partido individual, utilizado principalmente para pruebas y validaciones.
-
-- **`requirements.txt`**: Archivo que lista las dependencias necesarias para ejecutar el proyecto. Estas incluyen bibliotecas para scraping, manejo de datos, y control de flujo asíncrono.
+- **Archivos CSV de salida**:
+  - `estadisticas_todos_partidos.csv`: Estadísticas de jugadores de todos los partidos procesados.
+  - `estadisticas_partido.csv`: Estadísticas detalladas de partidos individuales.
+  - `estadisticas_equipos_por_partido.csv`: Estadísticas totales de cada equipo por partido.
+  - `perfiles_jugadores.csv`: Información detallada de los perfiles de jugadores.
 
 ## Requisitos
 
@@ -39,13 +48,26 @@ pip install -r requirements.txt
 - `pandas`: Manipulación y análisis de datos.
 - `requests`: Biblioteca simple para realizar solicitudes HTTP.
 - `tenacity`: Gestión de reintentos con lógica customizable.
-- `tqdm`: Progreso de procesos de scraping en la consola.
+- `tqdm`: Visualización de progreso en la consola.
+- `selenium`: Utilizada en `get_match_ids.py` para interactuar con páginas web dinámicas.
+- `webdriver_manager`: Gestión de drivers para Selenium.
 
 ## Uso
 
+### Extracción de IDs de Partidos
+
+Antes de ejecutar el scraper principal, puedes utilizar el script `get_match_ids.py` para obtener los IDs de partidos de la temporada actual:
+
+```bash
+cd get_match_ids
+python get_match_ids.py
+```
+
+Esto generará un archivo `match_ids.json` en el directorio raíz que será utilizado por el scraper principal.
+
 ### Configuración
 
-Antes de ejecutar el scraper, asegúrate de configurar los parámetros en `config.json`. Aquí se define el rango de partidos a recolectar, así como otras configuraciones críticas como el nombre del archivo de salida y el user-agent.
+Antes de ejecutar el scraper, asegúrate de configurar los parámetros en `config.json`. Aquí se define el rango de partidos a recolectar, así como otras configuraciones críticas:
 
 ```json
 {
@@ -54,6 +76,8 @@ Antes de ejecutar el scraper, asegúrate de configurar los parámetros en `confi
     "base_url": "https://www.acb.com/partido/estadisticas/id/",
     "output_file": "estadisticas_todos_partidos.csv",
     "output_file_game": "estadisticas_partido.csv",
+    "output_file_team_totals": "estadisticas_equipos_por_partido.csv",
+    "output_file_player_profiles": "perfiles_jugadores.csv",
     "max_retries": 3,
     "retry_delay": 5,
     "user_agent": "BasketballStatsScraper/1.0",
@@ -63,25 +87,45 @@ Antes de ejecutar el scraper, asegúrate de configurar los parámetros en `confi
 
 ### Ejecución
 
-Para iniciar el proceso de scraping, ejecuta el siguiente comando:
+Para iniciar el proceso de scraping, ejecuta el siguiente comando desde el directorio raíz:
 
 ```bash
 python main.py
 ```
 
-El scraper comenzará a recolectar datos de los partidos dentro del rango especificado y los almacenará en los archivos de salida definidos en la configuración.
+El scraper comenzará a recolectar datos de los partidos especificados en `match_ids.json` o en el rango definido en `config.json`, y los almacenará en los archivos de salida.
 
 ### Logging
 
-El proyecto utiliza el módulo `logger.py` para registrar eventos importantes, como el inicio y fin del scraping, errores y reintentos. Los logs se almacenan en la consola y se pueden redirigir a un archivo si se desea.
+El proyecto utiliza el módulo `logger.py` para registrar eventos importantes. Los logs se almacenan en el directorio `logs/` con un timestamp único para cada ejecución:
+
+```
+logs/scraper_20240105_123045.log
+```
+
+## Características de Rendimiento
+
+El proyecto incluye varias optimizaciones para mejorar el rendimiento:
+
+1. **Cliente HTTP Asíncrono**: Utiliza `aiohttp` con manejo asíncrono para maximizar la velocidad de descarga.
+
+2. **Rate Limiting Adaptativo**: Ajusta dinámicamente los tiempos de espera entre solicitudes basado en la respuesta del servidor.
+
+3. **Control de Concurrencia**: Limita el número de peticiones simultáneas para evitar sobrecargar el servidor.
+
+4. **Procesamiento Eficiente de DataFrames**: Utiliza técnicas como el procesamiento por fragmentos para manejar conjuntos de datos grandes.
+
+5. **Caché de Búsquedas**: Implementa estructuras de datos eficientes (como conjuntos) para búsquedas O(1) en lugar de O(n).
+
+6. **Reintentos Inteligentes**: Sistema de reintentos con espera exponencial para manejar fallos temporales.
 
 ## Consideraciones
 
-- **Rate Limiting**: El scraper respeta un límite de tasa (`rate_limit`) para evitar sobrecargar el servidor destino. Puedes ajustar este parámetro en `config.json`.
+- **Respeto al Servidor**: El scraper está diseñado para ser respetuoso con el servidor destino, implementando límites de tasa adaptativos y reintentos controlados.
 
-- **Reintentos**: En caso de fallas temporales en la red o respuestas inesperadas, el scraper intentará realizar un máximo de 3 reintentos (`max_retries`) antes de abandonar un partido.
+- **Modularidad**: El proyecto está diseñado de manera modular para facilitar futuras ampliaciones o modificaciones.
 
-- **Modularidad**: El proyecto está diseñado de manera modular para facilitar futuras ampliaciones o modificaciones, como la adaptación a nuevas fuentes de datos o el ajuste de las estrategias de recolección.
+- **Manejo de Errores**: Implementa un sistema robusto de manejo de errores para garantizar la fiabilidad del proceso de scraping.
 
 ## Contribuciones
 

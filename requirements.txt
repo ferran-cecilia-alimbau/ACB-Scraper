@@ -5,7 +5,6 @@ pandas
 requests
 tenacity
 tqdm
-pyspark
 selenium
 webdriver_manager
 matplotlib
