@@ -2,7 +2,7 @@
 Módulo principal de scraping para recopilar datos de partidos de baloncesto de la ACB.
 
 Este módulo provee funciones para extraer datos de partidos, estadísticas de jugadores
-y perfiles de jugadores de la web de la ACB, respetando límites de tasa y reintentos.
+y perfiles de jugadores de la web de la ACB de forma secuencial y simple.
 """
 import logging
 from typing import Dict, List, Optional, Set, Any
@@ -11,7 +11,7 @@ from aiohttp import ClientSession, ClientError
 from bs4 import BeautifulSoup
 
 import constants as const
-from http_client import fetch, create_client_session, concurrency_limiter
+from http_client import fetch, create_client_session
 from parsers import (
     extract_team_names, 
     extract_game_info, 
@@ -125,7 +125,7 @@ async def process_games(
     existing_profile_ids: Set[int]
 ) -> List[Dict[str, Any]]:
     """
-    Procesa una lista de partidos con control de concurrencia.
+    Procesa una lista de partidos de forma secuencial.
     
     Args:
         match_ids: Lista de IDs de partidos a procesar
@@ -146,32 +146,45 @@ async def process_games(
     
     logger.info(f"Procesando {len(new_match_ids)} partidos nuevos")
     
+    # Crear una copia del conjunto de perfiles existentes para actualizarlo durante la ejecución
+    current_profile_ids = existing_profile_ids.copy()
+    logger.info(f"Comenzando con {len(current_profile_ids)} perfiles de jugadores ya existentes")
+    
     # Crear sesión HTTP compartida
     async with await create_client_session() as session:
-        # Crear tareas asíncronas respetando el límite de concurrencia
-        tasks = []
+        # Procesar cada partido secuencialmente
+        successful_results = []
+        
         for game_id in new_match_ids:
             url = f"{base_url}{game_id}"
-            task = concurrency_limiter.run(
-                get_game_data(session, url, game_id, config, existing_profile_ids)
-            )
-            tasks.append(task)
-        
-        # Esperar a que se completen todas las tareas
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Filtrar resultados exitosos
-        successful_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                game_id = new_match_ids[i] if i < len(new_match_ids) else "desconocido"
-                logger.error(f"Error en partido {game_id}: {str(result)}")
-            elif result is not None:
-                successful_results.append(result)
+            try:
+                # Procesar un partido a la vez
+                result = await get_game_data(session, url, game_id, config, current_profile_ids)
+                if result:
+                    successful_results.append(result)
+                    logger.info(f"Partido {game_id} procesado correctamente")
+                    
+                    # Actualizar el conjunto de perfiles existentes con los nuevos perfiles obtenidos
+                    if 'player_profiles' in result and result['player_profiles']:
+                        new_profiles_count = 0
+                        for profile in result['player_profiles']:
+                            if 'player_id' in profile:
+                                try:
+                                    player_id = int(profile['player_id'])
+                                    if player_id not in current_profile_ids:
+                                        current_profile_ids.add(player_id)
+                                        new_profiles_count += 1
+                                except (ValueError, TypeError):
+                                    pass
+                        if new_profiles_count > 0:
+                            logger.info(f"Añadidos {new_profiles_count} nuevos perfiles de jugadores al caché")
+            except Exception as e:
+                logger.error(f"Error en partido {game_id}: {str(e)}")
         
         logger.info(
             f"Procesamiento completado: {len(successful_results)} exitosos "
             f"de {len(new_match_ids)} intentados"
         )
+        logger.info(f"Total de perfiles de jugadores en caché: {len(current_profile_ids)}")
         
         return successful_results

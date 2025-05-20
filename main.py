@@ -41,6 +41,14 @@ FILE_CONFIGS = {
     'output_file_player_profiles': FileConfig('player_id', 'columns_player_profiles')
 }
 
+# Mapeo de claves internas a claves de columnas en config.json
+COLUMN_KEYS = {
+    'output_file': 'columns_players',
+    'output_file_game': 'columns_games',
+    'output_file_team_totals': 'columns_team_totals',
+    'output_file_player_profiles': 'columns_player_profiles'
+}
+
 
 def load_config(filename: str = const.CONFIG_FILE) -> Dict[str, Any]:
     """
@@ -312,14 +320,13 @@ def process_and_save_data(
     # Guardar cada tipo de datos
     for key in new_data:
         if new_data[key]:
-            # Crear DataFrame con los nuevos datos
             new_df = pd.DataFrame(new_data[key])
             
             # Asegurar que tiene las columnas requeridas
-            columns_key = f'columns_{key.split("_")[-1]}'
-            if columns_key in config:
+            columns_key = COLUMN_KEYS.get(key)
+            if columns_key and columns_key in config:
                 new_df = ensure_columns(new_df, config[columns_key])
-                
+            
             # Combinar con los datos existentes
             combined_df = pd.concat([dataframes[key], new_df], ignore_index=True)
             

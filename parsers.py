@@ -18,7 +18,7 @@ from utils import (
     validate_number,
     safe_extract_text
 )
-from http_client import fetch, concurrency_limiter
+from http_client import fetch
 
 logger = logging.getLogger('basketball_scraper')
 
@@ -331,7 +331,7 @@ def extract_team_totals(table: BeautifulSoup, team_name: str, game_id: int) -> D
             "mates": cols[18].text.strip() if len(cols) > 18 else "0",
             "faltas_cometidas": cols[19].text.strip() if len(cols) > 19 else "0",
             "faltas_recibidas": cols[20].text.strip() if len(cols) > 20 else "0",
-            "+/-": cols[21].text.strip() if len(cols) > 21 else "0",
+            "plus_minus": cols[21].text.strip() if len(cols) > 21 else "0",
             "valoracion": cols[22].text.strip() if len(cols) > 22 else "0"
         }
     except Exception as e:
@@ -368,7 +368,7 @@ async def scrape_player_profile(
         soup = BeautifulSoup(html, 'html.parser')
         
         # Buscar el contenedor principal
-        container = soup.find('section', class_=const.SELECTORS["player_profile_container"].split('.')[-1])
+        container = soup.select_one(const.SELECTORS["player_profile_container"])
         if not container:
             logger.warning(f"No se encontró el contenedor del perfil para el jugador {player_id}")
             return None
@@ -377,7 +377,7 @@ async def scrape_player_profile(
         profile = {'player_id': str(player_id)}
         
         # Extraer el nombre
-        player_name_el = container.find('h1', class_=const.SELECTORS["player_name"].split('.')[-1])
+        player_name_el = container.select_one(const.SELECTORS["player_name"])
         if player_name_el:
             profile['nombre'] = player_name_el.text.strip()
         else:
@@ -385,7 +385,7 @@ async def scrape_player_profile(
             return None
         
         # Extraer datos básicos
-        datos_basicos = container.find('div', class_=const.SELECTORS["player_basic_data"].split('.')[-1])
+        datos_basicos = container.select_one(const.SELECTORS["player_basic_data"])
         if datos_basicos:
             # Extraer posición
             position_el = datos_basicos.find('div', class_='datos_basicos posicion roboto_condensed')
@@ -401,7 +401,7 @@ async def scrape_player_profile(
             })
         
         # Extraer datos secundarios
-        datos_secundarios = container.find('div', class_=const.SELECTORS["player_secondary_data"].split('.')[-1])
+        datos_secundarios = container.select_one(const.SELECTORS["player_secondary_data"])
         if datos_secundarios:
             # Lugar de nacimiento
             birth_place = safe_extract_text(
@@ -507,11 +507,8 @@ async def parse_table(
             
             # Comprobar si necesitamos obtener el perfil
             if player_id not in existing_profile_ids:
-                # Usar concurrency_limiter para controlar peticiones
-                profile_task = concurrency_limiter.run(
-                    scrape_player_profile(session, player_id, config)
-                )
-                profile = await profile_task
+                # Obtener perfil directamente
+                profile = await scrape_player_profile(session, player_id, config)
                 
                 if profile:
                     players_profiles.append(profile)

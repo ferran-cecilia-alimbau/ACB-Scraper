@@ -1,10 +1,10 @@
 """
-Cliente HTTP asíncrono con reintentos y rate limiting para ACB Scraper.
+Cliente HTTP asíncrono simplificado para ACB Scraper.
 """
 import logging
 import asyncio
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import aiohttp
 from aiohttp import ClientSession, ClientError, ClientResponseError
 from tenacity import (
@@ -18,65 +18,9 @@ import constants as const
 
 logger = logging.getLogger('basketball_scraper')
 
-
-class AdaptiveRateLimiter:
-    """
-    Controlador de rate limit adaptativo que ajusta el tiempo de espera
-    basado en las respuestas del servidor.
-    """
-    
-    def __init__(self, initial_rate_limit: float = const.DEFAULT_RATE_LIMIT):
-        """
-        Inicializa el rate limiter con un tiempo inicial.
-        
-        Args:
-            initial_rate_limit: Tiempo inicial de espera en segundos
-        """
-        self.rate_limit = initial_rate_limit
-        self.last_request_time = 0
-        self.consecutive_errors = 0
-        self.lock = asyncio.Lock()
-    
-    async def wait(self) -> None:
-        """
-        Espera el tiempo necesario según el rate limit actual.
-        """
-        async with self.lock:
-            now = time.time()
-            time_since_last = now - self.last_request_time
-            
-            if time_since_last < self.rate_limit:
-                wait_time = self.rate_limit - time_since_last
-                logger.debug(f"Rate limit: esperando {wait_time:.2f}s")
-                await asyncio.sleep(wait_time)
-            
-            self.last_request_time = time.time()
-    
-    def success(self) -> None:
-        """
-        Notifica una respuesta exitosa, potencialmente reduciendo
-        el tiempo de espera si ha habido pocos errores.
-        """
-        self.consecutive_errors = 0
-        # Reducir gradualmente el rate limit si no hay errores
-        # pero no bajar de un mínimo
-        if self.rate_limit > const.DEFAULT_RATE_LIMIT:
-            self.rate_limit = max(const.DEFAULT_RATE_LIMIT, self.rate_limit * 0.95)
-    
-    def error(self) -> None:
-        """
-        Notifica un error, aumentando el tiempo de espera
-        para evitar sobrecargar el servidor.
-        """
-        self.consecutive_errors += 1
-        # Aumentar exponencialmente el rate limit con cada error consecutivo
-        self.rate_limit = min(30, self.rate_limit * (1.5 ** self.consecutive_errors))
-        logger.warning(f"Rate limit aumentado a {self.rate_limit:.2f}s tras error")
-
-
-# Instancia global del rate limiter
-rate_limiter = AdaptiveRateLimiter()
-
+# Variable global para controlar el tiempo entre peticiones
+last_request_time = 0
+rate_limit_lock = asyncio.Lock()
 
 @retry(
     retry=retry_if_exception_type((ClientError, asyncio.TimeoutError)),
@@ -92,7 +36,7 @@ rate_limiter = AdaptiveRateLimiter()
 async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str:
     """
     Obtiene el contenido HTML de una URL con reintentos exponenciales
-    y rate limiting adaptativo.
+    y una simple pausa entre peticiones.
     
     Args:
         session: Sesión aiohttp para hacer la petición
@@ -108,15 +52,26 @@ async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str
     """
     if not url:
         raise ValueError("La URL no puede estar vacía")
+    
+    # Control simple de velocidad de peticiones
+    global last_request_time
+    async with rate_limit_lock:
+        current_time = time.time()
+        time_since_last = current_time - last_request_time
+        rate_limit = config.get('rate_limit', const.DEFAULT_RATE_LIMIT)
         
+        if time_since_last < rate_limit:
+            wait_time = rate_limit - time_since_last
+            logger.debug(f"Esperando {wait_time:.2f}s entre peticiones")
+            await asyncio.sleep(wait_time)
+        
+        last_request_time = time.time()
+    
     # Obtener headers y parámetros
     headers = {'User-Agent': config.get('user_agent', const.DEFAULT_USER_AGENT)}
     timeout = aiohttp.ClientTimeout(total=config.get('timeout', 30))
     
     try:
-        # Esperar según el rate limiter antes de hacer la petición
-        await rate_limiter.wait()
-        
         logger.info(f"Realizando petición HTTP a: {url}")
         async with session.get(url, headers=headers, timeout=timeout) as response:
             # Verificar que la respuesta es correcta
@@ -125,13 +80,9 @@ async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str
             # Obtener el contenido
             content = await response.text()
             
-            # Si llegamos aquí, la petición fue exitosa
-            rate_limiter.success()
-            
             # Verificar que el contenido es válido
             if not content or len(content) < 100:
                 logger.warning(f"Respuesta demasiado corta de {url}: {len(content)} bytes")
-                rate_limiter.error()
                 raise ClientResponseError(
                     request_info=response.request_info,
                     history=response.history,
@@ -142,64 +93,14 @@ async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str
                 
             return content
     except ClientError as e:
-        # Notificar error para ajustar el rate limit
-        rate_limiter.error()
         logger.error(f"Error en petición HTTP a {url}: {str(e)}")
         raise
     except asyncio.TimeoutError:
-        rate_limiter.error()
         logger.error(f"Timeout en petición HTTP a {url}")
         raise
     except Exception as e:
-        rate_limiter.error()
         logger.error(f"Error inesperado en petición HTTP a {url}: {str(e)}")
         raise
-
-
-class ConcurrencyLimiter:
-    """
-    Limita el número de tareas concurrentes para evitar saturar
-    el servidor o los recursos locales.
-    """
-    
-    def __init__(self, max_concurrent: int = const.MAX_CONCURRENT_REQUESTS):
-        """
-        Inicializa el limitador con un número máximo de tareas concurrentes.
-        
-        Args:
-            max_concurrent: Número máximo de tareas simultáneas
-        """
-        self.semaphore = asyncio.Semaphore(max_concurrent)
-        self.max_concurrent = max_concurrent
-        
-    async def acquire(self) -> None:
-        """Adquiere un slot para una nueva tarea."""
-        await self.semaphore.acquire()
-        
-    def release(self) -> None:
-        """Libera un slot al terminar una tarea."""
-        self.semaphore.release()
-        
-    async def run(self, coro) -> Any:
-        """
-        Ejecuta una corutina respetando el límite de concurrencia.
-        
-        Args:
-            coro: Corutina a ejecutar
-            
-        Returns:
-            Resultado de la corutina
-        """
-        await self.acquire()
-        try:
-            return await coro
-        finally:
-            self.release()
-
-
-# Instancia global del limitador de concurrencia
-concurrency_limiter = ConcurrencyLimiter()
-
 
 async def create_client_session() -> ClientSession:
     """
@@ -210,7 +111,7 @@ async def create_client_session() -> ClientSession:
     """
     # Configurar TCP connector con límites y conexiones persistentes
     connector = aiohttp.TCPConnector(
-        limit=const.MAX_CONCURRENT_REQUESTS,
+        limit=10,  # Límite conservador
         limit_per_host=5,
         enable_cleanup_closed=True,
         force_close=False,
