@@ -8,6 +8,10 @@
     "retry_delay": 5,
     "user_agent": "BasketballStatsScraper/1.0",
     "rate_limit": 1,
+    "max_concurrent": 5,
+    "batch_size": 20,
+    "batch_pause": 2,
+    "timeout": 30,
     "id_columns": {
         "output_file": ["id_partido", "player_id", "equipo", "nombre"],
         "output_file_game": ["id_partido"],
