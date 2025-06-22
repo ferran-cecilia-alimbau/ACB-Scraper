@@ -62,3 +62,6 @@ NON_PLAYING_COLUMNS = [
 # Índices para ignorar filas en tablas de estadísticas
 TABLE_HEADER_ROWS = 2
 TABLE_FOOTER_ROWS = 4
+
+# Varios
+PLAYER_STATS_COLUMNS_COUNT = 23

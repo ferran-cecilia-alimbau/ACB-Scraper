@@ -3,11 +3,11 @@ Parsers para extraer datos de las páginas HTML de la ACB.
 """
 import logging
 import re
+import constants as const
+
 from typing import Dict, List, Optional, Tuple, Any, Set
 from bs4 import BeautifulSoup
 from aiohttp import ClientSession
-
-import constants as const
 from utils import (
     clean_percentage, 
     clean_height, 
@@ -19,6 +19,8 @@ from utils import (
     safe_extract_text
 )
 from http_client import fetch
+
+
 
 logger = logging.getLogger('basketball_scraper')
 
@@ -182,7 +184,7 @@ def create_player_dict(player_data: List[str], game_id: int, team_name: str, pla
     Returns:
         Diccionario con las estadísticas del jugador
     """
-    if not player_data or len(player_data) < 23:
+    if not player_data or len(player_data) < const.PLAYER_STATS_COLUMNS_COUNT:
         logger.warning(f"Datos insuficientes para crear estadísticas del jugador {player_id}")
         return {}
     
@@ -278,7 +280,7 @@ def extract_team_totals(table: BeautifulSoup, team_name: str, game_id: int) -> D
         
         # Extraer las celdas
         cols = totals_row.find_all('td')
-        if len(cols) < 23:
+        if len(cols) < const.PLAYER_STATS_COLUMNS_COUNT:
             logger.error(f"Número insuficiente de columnas en la fila de totales para el equipo {team_name}")
             return {}
         
@@ -487,7 +489,7 @@ async def parse_table(
             player_data = [col.text.strip() for col in row.find_all('td')]
             
             # Verificar si hay suficientes datos
-            if len(player_data) < 23:
+            if len(player_data) < const.PLAYER_STATS_COLUMNS_COUNT:
                 logger.warning(
                     f"Datos incompletos para un jugador en el equipo {team_name}, "
                     f"partido {game_id}. Encontrados {len(player_data)} campos."
