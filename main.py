@@ -12,7 +12,6 @@ import sys
 from typing import Dict, Any, List, Set, Tuple, TypeAlias, Optional
 from dataclasses import dataclass
 import logging
-from pathlib import Path
 
 import constants as const
 from logger import setup_logger
@@ -269,35 +268,26 @@ def save_to_csv(data: pd.DataFrame, output_file: str) -> bool:
         return False
 
 
-def process_and_save_data(
-    config: Dict[str, Any], 
+def extract_new_data(
     results: List[Dict[str, Any]], 
-    dataframes: Dict[str, pd.DataFrame]
-) -> None:
+    existing_profile_ids_set: Set[str]
+) -> Dict[str, List]:
     """
-    Procesa los resultados del scraping y los guarda en archivos CSV.
+    Extrae los nuevos datos de los resultados del scraping.
     
     Args:
-        config: Configuración del scraper
         results: Resultados del scraping
-        dataframes: DataFrames existentes
-    """
-    if not results:
-        logger.info("No hay resultados para procesar")
-        return
+        existing_profile_ids_set: Conjunto de IDs de perfiles existentes
         
-    # Inicializar diccionario para los nuevos datos
+    Returns:
+        Diccionario con los nuevos datos organizados por tipo
+    """
     new_data = {
         'output_file': [],
         'output_file_game': [],
         'output_file_team_totals': [],
         'output_file_player_profiles': []
     }
-    
-    # Convertir IDs de perfiles a un conjunto para búsquedas más eficientes
-    existing_profile_ids_set = set(
-        str(id) for id in dataframes['output_file_player_profiles']['player_id'].values
-    )
     
     # Procesar cada resultado
     for result in results:
@@ -317,63 +307,118 @@ def process_and_save_data(
             if profile['player_id'] not in existing_profile_ids_set
         ])
     
-    # Guardar cada tipo de datos
+    return new_data
+
+
+def merge_and_deduplicate(
+    dataframes: Dict[str, pd.DataFrame], 
+    new_data: Dict[str, List], 
+    config: Dict[str, Any]
+) -> Dict[str, pd.DataFrame]:
+    """
+    Combina datos nuevos con existentes y elimina duplicados.
+    
+    Args:
+        dataframes: DataFrames existentes
+        new_data: Nuevos datos a añadir
+        config: Configuración del scraper
+        
+    Returns:
+        Diccionario con DataFrames actualizados
+    """
+    updated_dataframes = {}
+    
     for key in new_data:
-        if new_data[key]:
-            new_df = pd.DataFrame(new_data[key])
+        if not new_data[key]:
+            updated_dataframes[key] = dataframes[key]
+            continue
             
-            # Asegurar que tiene las columnas requeridas
-            columns_key = COLUMN_KEYS.get(key)
-            if columns_key and columns_key in config:
-                new_df = ensure_columns(new_df, config[columns_key])
+        new_df = pd.DataFrame(new_data[key])
+        
+        # Asegurar que tiene las columnas requeridas
+        columns_key = COLUMN_KEYS.get(key)
+        if columns_key and columns_key in config:
+            new_df = ensure_columns(new_df, config[columns_key])
+        
+        # Combinar con los datos existentes
+        combined_df = pd.concat([dataframes[key], new_df], ignore_index=True)
+        
+        # Eliminar duplicados eficientemente
+        chunk_size = const.CHUNK_SIZE
+        
+        if len(combined_df) > chunk_size:
+            # Para DataFrames grandes, procesar en fragmentos
+            logger.info(f"Procesando DataFrame grande ({len(combined_df)} filas) en fragmentos")
             
-            # Combinar con los datos existentes
-            combined_df = pd.concat([dataframes[key], new_df], ignore_index=True)
+            # Dividir en fragmentos
+            chunks = [
+                combined_df.iloc[i:i+chunk_size] 
+                for i in range(0, len(combined_df), chunk_size)
+            ]
             
-            # Eliminar duplicados eficientemente
-            chunk_size = const.CHUNK_SIZE
-            
-            if len(combined_df) > chunk_size:
-                # Para DataFrames grandes, procesar en fragmentos
-                logger.info(f"Procesando DataFrame grande ({len(combined_df)} filas) en fragmentos")
-                
-                # Dividir en fragmentos
-                chunks = [
-                    combined_df.iloc[i:i+chunk_size] 
-                    for i in range(0, len(combined_df), chunk_size)
-                ]
-                
-                # Procesar cada fragmento
-                processed_chunks = []
-                for i, chunk in enumerate(chunks):
-                    logger.debug(f"Procesando fragmento {i+1}/{len(chunks)}")
-                    processed_chunks.append(
-                        chunk.drop_duplicates(
-                            subset=config['id_columns'][key], 
-                            keep='last'
-                        )
+            # Procesar cada fragmento
+            processed_chunks = []
+            for i, chunk in enumerate(chunks):
+                logger.debug(f"Procesando fragmento {i+1}/{len(chunks)}")
+                processed_chunks.append(
+                    chunk.drop_duplicates(
+                        subset=config['id_columns'][key], 
+                        keep='last'
                     )
-                
-                # Recombinar fragmentos
-                combined_df = pd.concat(processed_chunks, ignore_index=True)
-                
-                # Eliminar duplicados entre fragmentos
-                combined_df = combined_df.drop_duplicates(
-                    subset=config['id_columns'][key], 
-                    keep='last'
                 )
-            else:
-                # Para DataFrames pequeños, procesar directamente
-                combined_df = combined_df.drop_duplicates(
-                    subset=config['id_columns'][key], 
-                    keep='last'
-                )
-                
-            # Actualizar el DataFrame en el diccionario
-            dataframes[key] = combined_df
             
-            # Guardar el resultado
-            save_to_csv(combined_df, config[key])
+            # Recombinar fragmentos
+            combined_df = pd.concat(processed_chunks, ignore_index=True)
+            
+            # Eliminar duplicados entre fragmentos
+            combined_df = combined_df.drop_duplicates(
+                subset=config['id_columns'][key], 
+                keep='last'
+            )
+        else:
+            # Para DataFrames pequeños, procesar directamente
+            combined_df = combined_df.drop_duplicates(
+                subset=config['id_columns'][key], 
+                keep='last'
+            )
+        
+        updated_dataframes[key] = combined_df
+    
+    return updated_dataframes
+
+
+def process_and_save_data(
+    config: Dict[str, Any], 
+    results: List[Dict[str, Any]], 
+    dataframes: Dict[str, pd.DataFrame]
+) -> None:
+    """
+    Procesa los resultados del scraping y los guarda en archivos CSV.
+    
+    Args:
+        config: Configuración del scraper
+        results: Resultados del scraping
+        dataframes: DataFrames existentes
+    """
+    if not results:
+        logger.info("No hay resultados para procesar")
+        return
+        
+    # Convertir IDs de perfiles a un conjunto para búsquedas más eficientes
+    existing_profile_ids_set = set(
+        str(id) for id in dataframes['output_file_player_profiles']['player_id'].values
+    )
+    
+    # Extraer nuevos datos
+    new_data = extract_new_data(results, existing_profile_ids_set)
+    
+    # Combinar y deduplicar
+    updated_dataframes = merge_and_deduplicate(dataframes, new_data, config)
+    
+    # Guardar cada tipo de datos
+    for key, df in updated_dataframes.items():
+        dataframes[key] = df
+        save_to_csv(df, config[key])
     
     logger.info("Procesamiento y guardado de datos completado")
 

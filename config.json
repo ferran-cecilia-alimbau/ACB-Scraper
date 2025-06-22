@@ -1,9 +1,9 @@
 {
     "base_url": "https://www.acb.com/partido/estadisticas/id/",
-    "output_file": "estadisticas_todos_partidos.csv",
-    "output_file_game": "estadisticas_partido.csv",
-    "output_file_team_totals": "estadisticas_equipos_por_partido.csv",
-    "output_file_player_profiles": "perfiles_jugadores.csv",
+"output_file": "data/output/estadisticas_todos_partidos.csv",
+    "output_file_game": "data/output/estadisticas_partido.csv",
+    "output_file_team_totals": "data/output/estadisticas_equipos_por_partido.csv",
+    "output_file_player_profiles": "data/output/perfiles_jugadores.csv",
     "max_retries": 3,
     "retry_delay": 5,
     "user_agent": "BasketballStatsScraper/1.0",

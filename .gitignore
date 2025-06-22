@@ -12,32 +12,42 @@ venv/
 # IDE project settings
 .idea/
 .vscode/
+*.swp
+*.swo
 
 # Logs
 logs/
 *.log
+data/logs/
+
+# Data files
+*.csv
+data/output/
+!data/output/.gitkeep
 
 # Chrome webdriver
 chromedriver.exe
 chromedriver
 
-# Files
-__pycache__/
-logs/
-estadisticas_todos_partidos.csv
-estadisticas_partido.csv
-.venv/
-estadisticas_equipos_por_partido.csv
-perfiles_jugadores.csv
+# Project specific ignores
 calculate_team_stats.py
 web (test)/
 shot graph/
 extract_play_by_play.py
 
-# PySpark output directories
-resultados_avanzados_por_partido.csv/
+# PySpark output
 *.crc
+*_$folder$
 
-# Analysis files
-performance_improvements.md
-improved_performance.md
+# Temporary and backup files
+*.bak
+backup_*/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Analysis and reports
+audit_report.md
+MIGRATION_REPORT.md

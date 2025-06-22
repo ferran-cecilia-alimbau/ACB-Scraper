@@ -11,7 +11,7 @@ from typing import Optional, Union
 def setup_logger(
     name: str = 'basketball_scraper',
     log_level: int = logging.DEBUG,
-    log_dir: str = 'logs',
+    log_dir: str = 'data/logs',
     console_level: Optional[int] = logging.INFO,
     log_format: str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 ) -> logging.Logger:

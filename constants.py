@@ -10,7 +10,7 @@ PLAYER_PROFILE_URL = "https://www.acb.com/jugador/ver/{player_id}"
 
 # Archivos
 CONFIG_FILE = "config.json"
-MATCH_IDS_FILE = "match_ids.json"
+MATCH_IDS_FILE = "data/input/match_ids.json"
 
 # Configuraciones de scraping
 DEFAULT_USER_AGENT = "BasketballStatsScraper/1.0"
