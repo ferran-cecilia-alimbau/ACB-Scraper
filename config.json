@@ -12,11 +12,6 @@
     "batch_size": 20,
     "batch_pause": 2,
     "timeout": 30,
-    "scrape_play_by_play": true,
-    "output_dir_play_by_play": "data/play_by_play",
-    "pbp_max_processes": 4,
-    "pbp_api_url": "https://api2.acb.com/api/v1/openapilive/Events/bymatch/",
-    "acb_api_token": "H4sIAAAAAAAAYR3Py27DMAwG4H1PEYLyZQpB2qhRoG4B4g4aR2kCrcQmSpIkDt_7Ki2bzsYfl_fH06PzE4JASR5B9fV7r6p7t539Wawb9Xn5u_0Xn62W7XvD7nJ4tW7WvW578wN5tZq2L6n6lOlk1TSrdfbx9Jfs_8A6dHc-DMPVF49UGStu8ZxukX3IIDErVHtm51PJKHD3PfqfckHqNTplYvDu59Jfs_mcTB7O_TLb-6Pw-a-X6cMOKvbE9b82qSqEuWHkjrulac_iSeojmLtPZRLtmi3XdG1ZiwRqbamXirGO0VmWYvJ4y8oZhYynSo8t9oEgybr9ILUsv5Q7A3uAaqUVc29oQkuOLUEpSkEknOwGIdGDk8Ic5pIfbun6V4TbCnK5UCzM8RqvLqakZPZXwDStiojvnn3OEjYKMdTp6fdo9kd7JfQyG_e5Oc3iqPPz-S+b+hyBw3tWbva4navVSp8Ld-JmnXTkurJ1BBPXJyT9e8QdZ18el6PwZgX1Wn3Lz8Uu_gGgYwzNrgEAAA==",
     "id_columns": {
         "output_file": ["id_partido", "player_id", "equipo", "nombre"],
         "output_file_game": ["id_partido"],

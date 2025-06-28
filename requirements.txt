@@ -1,10 +1,15 @@
+# Web scraping
 aiohttp==3.10.3
 beautifulsoup4==4.12.3
 requests==2.32.3
+
+# Data processing
 pandas==2.2.2
+
+# Utilities
 tenacity==8.5.0
 tqdm==4.66.5
+
+# Para get_match_ids.py
 selenium==4.23.1
 webdriver-manager==4.0.2
-selenium-wire==5.1.0
-blinker==1.4 
