@@ -37,7 +37,11 @@ El proyecto utiliza tecnologías asíncronas con **procesamiento paralelo** para
 
 ### Scripts Auxiliares
 
-- **`get_match_ids/get_match_ids.py`**: Script independiente para extraer IDs de partidos de la web de ACB y guardarlos en `match_ids.json`.
+- **`scripts/get_match_ids.py`**: Script independiente para extraer IDs de partidos de la web de ACB y guardarlos en `match_ids.json`.
+
+- **`scripts/batch_play_by_play.py`**: Script especializado para extraer datos de play-by-play usando Selenium con Chrome headless. Procesa múltiples partidos de forma concurrente y genera archivos CSV con todas las jugadas detalladas de cada partido.
+
+- **`scripts/verify_pbp_completeness.py`**: Utilidad para verificar la completitud de los archivos CSV de play-by-play. Identifica partidos con datos incompletos basándose en marcadores clave como "Cinco Inicial" y "Final del Partido".
 
 ### Archivos de Salida
 
@@ -47,6 +51,9 @@ Los datos se almacenan en archivos CSV dentro del directorio `data/output/`:
 - **`estadisticas_partido.csv`**: Información general de cada partido (fecha, resultado, árbitros, etc.)
 - **`estadisticas_equipos_por_partido.csv`**: Estadísticas totales de cada equipo por partido
 - **`perfiles_jugadores.csv`**: Información detallada de los perfiles de jugadores
+
+Los datos de play-by-play se almacenan en `data/play_by_play/`:
+- **`play_by_play_[ID].csv`**: Registro detallado de todas las jugadas de un partido específico, incluyendo tiempo, marcador, equipo, jugador y tipo de acción
 
 ## Requisitos
 
@@ -68,6 +75,9 @@ pip install -r requirements.txt
 - `tenacity`: Gestión de reintentos con lógica personalizable
 - `tqdm`: Visualización de progreso en la consola
 - `requests`: Solicitudes HTTP simples (usado en get_match_ids.py)
+- `selenium`: Automatización de navegador para extracción de play-by-play
+- `undetected-chromedriver`: Driver de Chrome optimizado para evitar detección
+- `beautifulsoup4`: Parseo adicional de HTML para datos complejos
 
 ## Uso
 
@@ -76,7 +86,7 @@ pip install -r requirements.txt
 Antes de ejecutar el scraper principal, obtén los IDs de partidos de la temporada:
 
 ```bash
-cd get_match_ids
+cd scripts
 python get_match_ids.py
 cd ..
 ```
@@ -127,7 +137,37 @@ El scraper:
 4. Mostrará una barra de progreso en tiempo real
 5. Guardará los resultados en los archivos CSV correspondientes
 
-### 4. Reprocesar Partidos
+### 4. Extracción de Play-by-Play
+
+Para extraer datos detallados de jugadas:
+
+```bash
+cd scripts
+python batch_play_by_play.py
+cd ..
+```
+
+Este script:
+1. Usa Selenium para navegar por las páginas de play-by-play
+2. Extrae todas las jugadas de cada partido
+3. Genera archivos CSV individuales para cada partido
+4. Ofrece opciones para procesar todos los partidos o un rango específico
+
+### 5. Verificación de Completitud
+
+Para verificar que los archivos de play-by-play están completos:
+
+```bash
+cd scripts
+python verify_pbp_completeness.py
+cd ..
+```
+
+Este script identifica partidos con datos incompletos basándose en:
+- Presencia de al menos 9 eventos "Cinco Inicial"
+- Presencia de "Final del Partido"
+
+### 6. Reprocesar Partidos
 
 Si necesitas reprocesar partidos específicos:
 
@@ -240,6 +280,13 @@ Información biográfica de jugadores:
 - Datos personales: nombre completo, fecha de nacimiento, nacionalidad
 - Datos físicos: altura, posición
 - Datos de equipo: dorsal, licencia
+
+### play_by_play_[ID].csv
+Registro detallado de jugadas por partido:
+- Identificación: id_partido, periodo, tiempo
+- Marcador: puntuación local y visitante en cada jugada
+- Acción: equipo, jugador, tipo de jugada (tiro, rebote, falta, etc.)
+- Estadísticas: información adicional sobre la jugada
 
 ## Contribuciones
 

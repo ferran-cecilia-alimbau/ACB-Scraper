@@ -51,3 +51,6 @@ Thumbs.db
 # Analysis and reports
 audit_report.md
 MIGRATION_REPORT.md
+analytics/acb_analytics.py
+.claude/settings.local.json
+analytics/requirements.txt
