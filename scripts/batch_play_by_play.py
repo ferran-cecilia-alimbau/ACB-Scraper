@@ -87,7 +87,7 @@ class BatchHumanLikeScraper:
                 is_already_selected = 'fi-per__item--selected' in current_classes or 'selected' in current_classes
                 
                 if is_already_selected:
-                    print("   ✅ El botón 'Todos' ya está seleccionado")
+                    print("   [OK] El botón 'Todos' ya está seleccionado")
                     return True
                 
                 # 5. Intentar diferentes métodos de click
@@ -112,7 +112,7 @@ class BatchHumanLikeScraper:
                         continue
                 
                 if not click_successful:
-                    print(f"   ❌ Todos los métodos de click fallaron en intento {attempt + 1}")
+                    print(f"   [FALLO] Todos los métodos de click fallaron en intento {attempt + 1}")
                     continue
                 
                 # 6. Verificar que el click tuvo efecto
@@ -126,17 +126,17 @@ class BatchHumanLikeScraper:
                         current_classes = current_button.get_attribute('class') or ''
                         
                         if 'fi-per__item--selected' in current_classes or 'selected' in current_classes:
-                            print("   ✅ Click verificado - botón 'Todos' seleccionado")
+                            print("   [OK] Click verificado - botón 'Todos' seleccionado")
                             
                             # 7. Esperar a que las jugadas se carguen
                             try:
                                 WebDriverWait(driver, 15).until(
                                     EC.presence_of_element_located((By.CSS_SELECTOR, ".pp-item"))
                                 )
-                                print("   ✅ Jugadas detectadas después del filtro")
+                                print("   [OK] Jugadas detectadas después del filtro")
                                 return True
                             except TimeoutException:
-                                print("   ⚠️ Timeout esperando jugadas después del filtro")
+                                print("   [AVISO] Timeout esperando jugadas después del filtro")
                                 # Continuar con el siguiente intento
                                 break
                         
@@ -150,14 +150,14 @@ class BatchHumanLikeScraper:
                         print(f"   Error durante verificación: {e}")
                         break
                 
-                print(f"   ❌ Verificación falló en intento {attempt + 1}")
+                print(f"   [FALLO] Verificación falló en intento {attempt + 1}")
                 time.sleep(2)  # Pausa antes del siguiente intento
                 
             except TimeoutException:
-                print(f"   ❌ Timeout en intento {attempt + 1}")
+                print(f"   [FALLO] Timeout en intento {attempt + 1}")
                 continue
             except Exception as e:
-                print(f"   ❌ Error en intento {attempt + 1}: {e}")
+                print(f"   [FALLO] Error en intento {attempt + 1}: {e}")
                 continue
         
         return False
@@ -178,14 +178,14 @@ class BatchHumanLikeScraper:
             for selector_type, selector, min_count in checks:
                 elements = driver.find_elements(selector_type, selector)
                 if len(elements) < min_count:
-                    print(f"   ⚠️ Verificación falló: {selector} - encontrados {len(elements)}, esperados {min_count}")
+                    print(f"   [AVISO] Verificación falló: {selector} - encontrados {len(elements)}, esperados {min_count}")
                     return False
             
-            print("   ✅ Verificación de datos completa exitosa")
+            print("   [OK] Verificación de datos completa exitosa")
             return True
             
         except Exception as e:
-            print(f"   ❌ Error en verificación de datos: {e}")
+            print(f"   [FALLO] Error en verificación de datos: {e}")
             return False
 
     def _scrape_and_process_game(self, game_id):
@@ -196,7 +196,7 @@ class BatchHumanLikeScraper:
 
         driver = self.driver_pool.get()
         try:
-            print(f"▶️  Procesando partido {game_id}...")
+            print(f"[INFO]  Procesando partido {game_id}...")
             
             url = f"https://jv.acb.com/es/{game_id}/jugadas"
             driver.get(url)
@@ -220,13 +220,13 @@ class BatchHumanLikeScraper:
                 return f"ERROR en {game_id}: No se pudo aplicar filtro 'Todos' después de múltiples intentos"
             
             # Scroll para cargar todo el contenido
-            print(f"   📜 Cargando contenido completo...")
+            print(f"   [INFO] Cargando contenido completo...")
             start_time = time.time()
             scroll_timeout = 600  # 10 minutos máximo
             
             while True:
                 if time.time() - start_time > scroll_timeout:
-                    print(f"   ⚠️ Timeout de scroll en partido {game_id}")
+                    print(f"   [AVISO] Timeout de scroll en partido {game_id}")
                     break
                 
                 # Verificar si tenemos marcadores de inicio y fin
@@ -234,7 +234,7 @@ class BatchHumanLikeScraper:
                 fin_count = len(driver.find_elements(By.XPATH, "//*[contains(text(), 'Final del Partido')]"))
                 
                 if inicio_count >= 9 and fin_count >= 1:
-                    print(f"   ✅ Contenido completo detectado (Inicio: {inicio_count}, Fin: {fin_count})")
+                    print(f"   [OK] Contenido completo detectado (Inicio: {inicio_count}, Fin: {fin_count})")
                     break
                 
                 # Scroll y pequeña pausa
@@ -322,7 +322,7 @@ class BatchHumanLikeScraper:
     def run_batch(self, game_ids, max_workers=4):
         start_time = time.time()
 
-        print(f"🚀 Creando pool de {max_workers} navegadores...")
+        print(f"[INFO] Creando pool de {max_workers} navegadores...")
         for _ in range(max_workers):
             self.driver_pool.put(self.setup_undetected_driver())
 
@@ -336,7 +336,7 @@ class BatchHumanLikeScraper:
                 except Exception as e:
                     print(f"Error en un hilo de ejecución: {e}")
         
-        print("🧹 Limpiando y cerrando navegadores...")
+        print("[INFO] Limpiando y cerrando navegadores...")
         while not self.driver_pool.empty():
             driver = self.driver_pool.get()
             driver.quit()
@@ -353,7 +353,7 @@ if __name__ == "__main__":
         print("Error: No se encuentra el fichero 'data/input/match_ids.json'")
         exit()
     
-    print(f"📋 Total partidos en el fichero: {len(all_game_ids)}")
+    print(f"[INFO] Total partidos en el fichero: {len(all_game_ids)}")
     scraper = BatchHumanLikeScraper()
     print("\n1. Procesar TODOS los partidos\n2. Procesar los primeros 10 partidos\n3. Procesar un rango de índices (ej: 0 a 5)")
     choice = input("\nElige una opción: ")

@@ -54,3 +54,5 @@ MIGRATION_REPORT.md
 analytics/acb_analytics.py
 .claude/settings.local.json
 analytics/requirements.txt
+scripts/audit_play_by_play.py
+data/input/match_ids.json

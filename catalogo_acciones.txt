@@ -1,0 +1,60 @@
+Asistencia
+Cinco Inicial
+Descalificado del partido
+Descalificante
+Descalificante - 2TL
+Entra a pista
+Falta Antideportiva
+Falta Antideportiva 1TL
+Falta Antideportiva 2TL
+Falta Antideportiva 3TL
+Falta Personal
+Falta Personal 1TL
+Falta Personal 2TL
+Falta Personal 3TL
+Falta Recibida
+Falta Técnica
+Falta Técnica 1TL
+Falta en Ataque
+Final de Periodo
+Final del Partido
+IR - Challenge entrenador local
+IR - Challenge entrenador visitante
+IR - Challenge ganado
+IR - Challenge perdido
+IR - Comprobación del tipo de tiro convertido
+IR - Revisión acción jugador
+IR - Revisión de cambios
+IR - Revisión de la validez de una canasta
+IR - Revisión de una violación
+IR - Revisión del reloj de partido
+IR - Revisión del tipo de falta
+IR - Revisión por enfrentamiento
+IR - Revisión reloj de posesión
+IR - Revisión último jugador en tocar balón
+Inicio de Periodo
+Inicio del Partido
+Mate
+Mate fallado
+Pérdida
+Rebote Defensivo
+Rebote Ofensivo
+Recuperación
+Sale de la pista
+Salto ganado
+Salto perdido
+Tapón
+Tapón Recibido
+Tiempo Muerto
+Tiempo Muerto de TV
+Tiro Libre anotado
+Tiro Libre fallado
+Tiro de 2 anotado
+Tiro de 2 fallado
+Triple anotado
+Triple fallado
+Técnica al Banquillo
+Técnica al Banquillo (1TL)
+Técnica al Banquillo (2TL)
+Técnica al Entrenador
+Técnica al Entrenador (1TL)

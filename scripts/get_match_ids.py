@@ -3,9 +3,11 @@ from bs4 import BeautifulSoup
 import json
 import re
 import os
+from pathlib import Path
 
 
-OUTPUT_PATH = '../data/input/match_ids.json'
+BASE_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_PATH = BASE_DIR / 'data' / 'input' / 'match_ids.json'
 
 def get_match_ids(url):
     # Hacer la petición GET a la página
@@ -39,15 +41,16 @@ def get_match_ids(url):
     return match_ids
 
 def save_to_json(data, filename):
+    filename = Path(filename)
     # Crear el directorio si no existe
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    os.makedirs(filename.parent, exist_ok=True)
     
     # Guardar con el mismo formato que antes
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
-# URL de la página con el calendario (2023 o 2024 según temporada deseada)
-url = "https://www.acb.com/calendario/index/temporada_id/2024"
+# URL de la página con el calendario (actualizar según temporada deseada)
+url = "https://www.acb.com/calendario/index/temporada_id/2025"
 
 # Obtener los IDs de los partidos
 match_ids = get_match_ids(url)
