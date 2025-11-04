@@ -115,7 +115,7 @@ async def create_client_session() -> ClientSession:
         limit_per_host=5,
         enable_cleanup_closed=True,
         force_close=False,
-        ssl=False  # Cambiar a True si se requiere HTTPS verificado
+        ssl=True  # SSL habilitado para verificar certificados HTTPS
     )
     
     # Crear y devolver la sesión

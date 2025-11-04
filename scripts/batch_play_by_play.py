@@ -6,6 +6,7 @@ import json
 import time
 import csv
 import queue
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -17,9 +18,11 @@ import undetected_chromedriver as uc
 
 class BatchHumanLikeScraper:
     """Procesador en lote que extrae Play-by-Play de forma concurrente."""
-    
+
     def __init__(self):
-        self.output_dir = "../data/play_by_play"
+        # Usar ruta absoluta basada en la ubicación del script
+        script_dir = Path(__file__).resolve().parent
+        self.output_dir = script_dir.parent / "data" / "play_by_play"
         os.makedirs(self.output_dir, exist_ok=True)
         self.driver_pool = queue.Queue()
 
@@ -76,7 +79,8 @@ class BatchHumanLikeScraper:
                         todos_button = driver.find_element(By.XPATH, selector)
                         if todos_button.is_displayed():
                             break
-                    except:
+                    except Exception as e:
+                        # Elemento no encontrado o no visible, probar siguiente selector
                         continue
                 
                 if not todos_button:
@@ -312,8 +316,9 @@ class BatchHumanLikeScraper:
         except Exception as e:
             try:
                 driver.get('about:blank')
-            except:
-                pass
+            except Exception as cleanup_error:
+                # Si falla el cleanup, no es crítico, continuamos
+                print(f"   [AVISO] Error en cleanup del driver: {cleanup_error}")
             return f"ERROR en {game_id}: {e}"
         finally:
             if driver:
@@ -347,7 +352,10 @@ class BatchHumanLikeScraper:
 
 if __name__ == "__main__":
     try:
-        with open('../data/input/match_ids.json', 'r') as f:
+        # Usar ruta absoluta basada en la ubicación del script
+        script_dir = Path(__file__).resolve().parent
+        match_ids_file = script_dir.parent / "data" / "input" / "match_ids.json"
+        with open(match_ids_file, 'r') as f:
             all_game_ids = json.load(f)['match_ids']
     except FileNotFoundError:
         print("Error: No se encuentra el fichero 'data/input/match_ids.json'")
