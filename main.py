@@ -73,15 +73,32 @@ def load_config(filename: str = const.CONFIG_FILE) -> Dict[str, Any]:
             config = json.load(file)
         
         logger.info(f"Configuración cargada exitosamente desde {filename}")
-        
-        # Validar configuración mínima
-        required_keys = ['base_url', 'output_file']
+
+        # Validar configuración mínima requerida
+        required_keys = [
+            'base_url', 'output_file', 'output_file_game',
+            'output_file_team_totals', 'output_file_player_profiles',
+            'id_columns', 'columns_players', 'columns_games',
+            'columns_team_totals', 'columns_player_profiles'
+        ]
         missing_keys = [key for key in required_keys if key not in config]
-        
+
         if missing_keys:
             error_msg = f"Faltan claves requeridas en la configuración: {missing_keys}"
             logger.error(error_msg)
             raise ValueError(error_msg)
+
+        # Validar que id_columns tenga las claves necesarias
+        required_id_columns = [
+            'output_file', 'output_file_game',
+            'output_file_team_totals', 'output_file_player_profiles'
+        ]
+        if 'id_columns' in config:
+            missing_id_cols = [key for key in required_id_columns if key not in config['id_columns']]
+            if missing_id_cols:
+                error_msg = f"Faltan claves en 'id_columns': {missing_id_cols}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
             
         return config
     except (FileNotFoundError, json.JSONDecodeError) as e:
@@ -269,8 +286,8 @@ def save_to_csv(data: pd.DataFrame, output_file: str) -> bool:
 
 
 def extract_new_data(
-    results: List[Dict[str, Any]], 
-    existing_profile_ids_set: Set[str]
+    results: List[Dict[str, Any]],
+    existing_profile_ids_set: Set[int]
 ) -> Dict[str, List]:
     """
     Extrae los nuevos datos de los resultados del scraping.
@@ -344,43 +361,13 @@ def merge_and_deduplicate(
         combined_df = pd.concat([dataframes[key], new_df], ignore_index=True)
         
         # Eliminar duplicados eficientemente
-        chunk_size = const.CHUNK_SIZE
-        
-        if len(combined_df) > chunk_size:
-            # Para DataFrames grandes, procesar en fragmentos
-            logger.info(f"Procesando DataFrame grande ({len(combined_df)} filas) en fragmentos")
-            
-            # Dividir en fragmentos
-            chunks = [
-                combined_df.iloc[i:i+chunk_size] 
-                for i in range(0, len(combined_df), chunk_size)
-            ]
-            
-            # Procesar cada fragmento
-            processed_chunks = []
-            for i, chunk in enumerate(chunks):
-                logger.debug(f"Procesando fragmento {i+1}/{len(chunks)}")
-                processed_chunks.append(
-                    chunk.drop_duplicates(
-                        subset=config['id_columns'][key], 
-                        keep='last'
-                    )
-                )
-            
-            # Recombinar fragmentos
-            combined_df = pd.concat(processed_chunks, ignore_index=True)
-            
-            # Eliminar duplicados entre fragmentos
-            combined_df = combined_df.drop_duplicates(
-                subset=config['id_columns'][key], 
-                keep='last'
-            )
-        else:
-            # Para DataFrames pequeños, procesar directamente
-            combined_df = combined_df.drop_duplicates(
-                subset=config['id_columns'][key], 
-                keep='last'
-            )
+        # Solo hacemos drop_duplicates una vez sobre todo el DataFrame
+        # pandas es lo suficientemente eficiente para manejar esto directamente
+        logger.debug(f"Eliminando duplicados en DataFrame de {len(combined_df)} filas")
+        combined_df = combined_df.drop_duplicates(
+            subset=config['id_columns'][key],
+            keep='last'
+        )
         
         updated_dataframes[key] = combined_df
     
@@ -405,9 +392,15 @@ def process_and_save_data(
         return
         
     # Convertir IDs de perfiles a un conjunto para búsquedas más eficientes
-    existing_profile_ids_set = set(
-        str(id) for id in dataframes['output_file_player_profiles']['player_id'].values
-    )
+    existing_profile_ids_set = set()
+    if not dataframes['output_file_player_profiles'].empty and \
+       'player_id' in dataframes['output_file_player_profiles'].columns:
+        existing_profile_ids_set = set(
+            int(id) for id in pd.to_numeric(
+                dataframes['output_file_player_profiles']['player_id'],
+                errors='coerce'
+            ).dropna()
+        )
     
     # Extraer nuevos datos
     new_data = extract_new_data(results, existing_profile_ids_set)
@@ -438,12 +431,15 @@ async def main():
         dataframes, existing_ids = load_existing_data(config)
         
         # Preparar conjunto de IDs de perfiles existentes
-        existing_profile_ids = set(
-            int(id) for id in pd.to_numeric(
-                dataframes['output_file_player_profiles']['player_id'], 
-                errors='coerce'
-            ).dropna()
-        )
+        existing_profile_ids = set()
+        if not dataframes['output_file_player_profiles'].empty and \
+           'player_id' in dataframes['output_file_player_profiles'].columns:
+            existing_profile_ids = set(
+                int(id) for id in pd.to_numeric(
+                    dataframes['output_file_player_profiles']['player_id'],
+                    errors='coerce'
+                ).dropna()
+            )
         
         # Calcular todos los IDs existentes
         all_existing_ids = set().union(*existing_ids.values())

@@ -171,10 +171,10 @@ def extract_game_info(soup: BeautifulSoup, game_id: int) -> Dict[str, str]:
     return game_info
 
 
-def create_player_dict(player_data: List[str], game_id: int, team_name: str, player_id: str) -> Dict[str, str]:
+def create_player_dict(player_data: List[str], game_id: int, team_name: str, player_id: int) -> Dict[str, str]:
     """
     Crea un diccionario con las estadísticas del jugador.
-    
+
     Args:
         player_data: Lista de datos del jugador
         game_id: ID del partido
@@ -374,9 +374,9 @@ async def scrape_player_profile(
         if not container:
             logger.warning(f"No se encontró el contenedor del perfil para el jugador {player_id}")
             return None
-        
+
         # Inicializar el perfil con el ID del jugador
-        profile = {'player_id': str(player_id)}
+        profile = {'player_id': player_id}
         
         # Extraer el nombre
         player_name_el = container.select_one(const.SELECTORS["player_name"])
@@ -476,18 +476,31 @@ async def parse_table(
     
     players_stats = []
     players_profiles = []
-    
+
     try:
+        # Extraer todas las filas
+        all_rows = table.find_all('tr')
+
+        # Validar que hay suficientes filas en la tabla
+        min_rows_required = const.TABLE_HEADER_ROWS + const.TABLE_FOOTER_ROWS
+        if len(all_rows) < min_rows_required:
+            logger.error(
+                f"Tabla del equipo {team_name} en partido {game_id} tiene solo "
+                f"{len(all_rows)} filas, se requieren al menos {min_rows_required}"
+            )
+            return [], []
+
         # Extraer filas de jugadores (ignorando cabeceras y totales)
-        rows = table.find_all('tr')[
-            const.TABLE_HEADER_ROWS:-const.TABLE_FOOTER_ROWS
-        ]
-        
-        # Procesar cada fila (jugador)
+        rows = all_rows[const.TABLE_HEADER_ROWS:-const.TABLE_FOOTER_ROWS]
+
+        # Lista para acumular IDs de jugadores que necesitan perfil
+        player_ids_to_fetch = []
+
+        # Primera pasada: extraer estadísticas e identificar perfiles necesarios
         for row in rows:
             # Extraer datos de la fila
             player_data = [col.text.strip() for col in row.find_all('td')]
-            
+
             # Verificar si hay suficientes datos
             if len(player_data) < const.PLAYER_STATS_COLUMNS_COUNT:
                 logger.warning(
@@ -495,28 +508,46 @@ async def parse_table(
                     f"partido {game_id}. Encontrados {len(player_data)} campos."
                 )
                 continue
-            
+
             # Extraer ID del jugador
             player_id = extract_player_id(row)
             if player_id is None:
                 logger.warning(f"No se pudo extraer ID de jugador en el equipo {team_name}")
                 continue
-            
+
             # Crear diccionario de estadísticas
-            player_stats = create_player_dict(player_data, game_id, team_name, str(player_id))
+            player_stats = create_player_dict(player_data, game_id, team_name, player_id)
             if player_stats:
                 players_stats.append(player_stats)
-            
+
             # Comprobar si necesitamos obtener el perfil
             if player_id not in existing_profile_ids:
-                # Obtener perfil directamente
-                profile = await scrape_player_profile(session, player_id, config)
-                
+                player_ids_to_fetch.append(player_id)
+            else:
+                logger.debug(f"Jugador {player_id} ya existe en la base de datos, omitiendo perfil")
+
+        # Segunda pasada: obtener perfiles en paralelo
+        if player_ids_to_fetch:
+            logger.info(f"Obteniendo {len(player_ids_to_fetch)} perfiles de jugadores en paralelo")
+
+            # Crear tareas para todos los perfiles
+            profile_tasks = [
+                scrape_player_profile(session, player_id, config)
+                for player_id in player_ids_to_fetch
+            ]
+
+            # Ejecutar todas las tareas en paralelo
+            profiles = await asyncio.gather(*profile_tasks, return_exceptions=True)
+
+            # Procesar resultados
+            for player_id, profile in zip(player_ids_to_fetch, profiles):
+                if isinstance(profile, Exception):
+                    logger.error(f"Error obteniendo perfil del jugador {player_id}: {profile}")
+                    continue
+
                 if profile:
                     players_profiles.append(profile)
                     logger.info(f"Perfil de jugador {player_id} obtenido correctamente")
-            else:
-                logger.debug(f"Jugador {player_id} ya existe en la base de datos, omitiendo perfil")
     
     except Exception as e:
         logger.error(f"Error al parsear tabla del equipo {team_name}: {str(e)}")
