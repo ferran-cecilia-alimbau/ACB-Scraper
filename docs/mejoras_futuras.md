@@ -2,9 +2,9 @@
 
 Este documento lista las mejoras identificadas pero no implementadas aún, organizadas por prioridad.
 
-## 🟡 Nivel 2 - Alta Prioridad (Arreglar Pronto)
+## ~~🟡 Nivel 2 - Alta Prioridad~~ ✅ COMPLETADO
 
-### 1. Refactorizar Variables Globales a Clase RateLimiter
+### ~~1. Refactorizar Variables Globales a Clase RateLimiter~~ ✅
 **Ubicación**: `http_client.py:22-23`
 
 **Problema Actual**:
@@ -37,7 +37,7 @@ class RateLimiter:
 
 ---
 
-### 2. Unificar Validación HTML
+### ~~2. Unificar Validación HTML~~ ✅
 **Ubicación**: `http_client.py:84` vs `scraper.py:61`
 
 **Problema Actual**:
@@ -60,7 +60,7 @@ if not html or len(html) < const.MIN_VALID_HTML_LENGTH:
 
 ---
 
-### 3. Proteger .strip() en utils.py
+### ~~3. Proteger .strip() en utils.py~~ ✅
 **Ubicación**: `utils.py:78, 80`
 
 **Problema Actual**:
@@ -241,16 +241,16 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 ## 📊 Resumen de Prioridades
 
-| Mejora | Prioridad | Esfuerzo | Impacto |
-|--------|-----------|----------|---------|
-| Refactorizar Variables Globales | 🟡 Alta | Medio | Alto |
-| Unificar Validación HTML | 🟡 Alta | Bajo | Medio |
-| Proteger .strip() | 🟡 Alta | Bajo | Medio |
-| Optimizar Timeout | 🟢 Media | Medio | Medio |
-| Mejorar Gestión Recursos | 🟢 Media | Alto | Alto |
-| Estandarizar Logging | 🟢 Baja | Bajo | Bajo |
-| Memory Leak | 🟢 Baja | Bajo | Bajo |
-| Signal Handlers | 🟢 Baja | Medio | Medio |
+| Mejora | Prioridad | Esfuerzo | Impacto | Estado |
+|--------|-----------|----------|---------|--------|
+| ~~Refactorizar Variables Globales~~ | ~~🟡 Alta~~ | ~~Medio~~ | ~~Alto~~ | ✅ Completado |
+| ~~Unificar Validación HTML~~ | ~~🟡 Alta~~ | ~~Bajo~~ | ~~Medio~~ | ✅ Completado |
+| ~~Proteger .strip()~~ | ~~🟡 Alta~~ | ~~Bajo~~ | ~~Medio~~ | ✅ Completado |
+| Optimizar Timeout | 🟢 Media | Medio | Medio | 📋 Pendiente |
+| Mejorar Gestión Recursos | 🟢 Media | Alto | Alto | 📋 Pendiente |
+| Estandarizar Logging | 🟢 Baja | Bajo | Bajo | 📋 Pendiente |
+| Memory Leak | 🟢 Baja | Bajo | Bajo | 📋 Pendiente |
+| Signal Handlers | 🟢 Baja | Medio | Medio | 📋 Pendiente |
 
 ---
 
@@ -271,7 +271,12 @@ signal.signal(signal.SIGTERM, signal_handler)
 8. ✅ Bare exceptions corregidas en batch_play_by_play
 9. ✅ Rutas relativas convertidas a absolutas
 
-**Mejora total**: ~6x más rápido end-to-end, más estable y seguro.
+### Fase 4 - Calidad de Código (2024-11-05)
+10. ✅ Variables globales refactorizadas a clase RateLimiter
+11. ✅ Validación HTML unificada (200 bytes consistente)
+12. ✅ Protección .strip() en utils.py para valores None
+
+**Mejora total**: ~6x más rápido end-to-end, más estable, seguro y mantenible.
 
 ---
 
