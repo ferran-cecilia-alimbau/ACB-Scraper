@@ -3,7 +3,8 @@ Análisis de consistencia, rachas (streaks) y volatilidad de jugadores.
 
 Detecta "hot hands", rachas frías, y mide la predictibilidad del rendimiento.
 """
-from pyspark.sql import DataFrame, Window
+from pyspark.sql import DataFrame
+from pyspark.sql.window import Window
 from pyspark.sql.functions import (
     col, lag, lead, when, count, sum as spark_sum, avg, stddev,
     row_number, dense_rank, lit, round as spark_round
