@@ -77,8 +77,8 @@ def cluster_players_by_style(df: DataFrame, n_clusters: int = 5, min_minutes: fl
         "rebotes_promedio",
         "asistencias_promedio",
         "ts_percentage_avg",
-        "usage_rate_simple",
-        "three_point_rate",
+        "usage_rate_avg",
+        "three_point_rate_avg",
         "ast_to_tov_avg"
     ]
 
@@ -124,7 +124,7 @@ def interpret_player_clusters(df_clustered: DataFrame) -> DataFrame:
                             "rebotes_promedio": "avg",
                             "asistencias_promedio": "avg",
                             "ts_percentage_avg": "avg",
-                            "three_point_rate": "avg"
+                            "three_point_rate_avg": "avg"
                         }))
 
     cluster_profiles.show()
@@ -287,7 +287,7 @@ def get_cluster_statistics(df_clustered: DataFrame) -> DataFrame:
                  avg("puntos_promedio").alias("avg_points"),
                  stddev("puntos_promedio").alias("std_points"),
                  avg("ts_percentage_avg").alias("avg_ts"),
-                 avg("usage_rate_simple").alias("avg_usage"),
+                 avg("usage_rate_avg").alias("avg_usage"),
                  spark_min("puntos_promedio").alias("min_points"),
                  spark_max("puntos_promedio").alias("max_points")
              )
