@@ -110,7 +110,7 @@ def main():
         categories = [
             ("🎯 SCORING EFFICIENCY (TS%)", "ts_percentage_avg", 10),
             ("🔥 OVERALL PERFORMANCE (PER)", "per_avg", 10),
-            ("🏃 USAGE LEADERS", "usage_rate_simple", 10),
+            ("🏃 USAGE LEADERS", "usage_rate_avg", 10),
             ("🎨 PLAYMAKERS (AST/TOV)", "ast_to_tov_avg", 10),
             ("📊 SCORING VOLUME", "puntos_promedio", 10),
             ("🔄 REBOUNDING", "rebotes_promedio", 10),

@@ -157,8 +157,8 @@ def get_team_season_averages(df_team_totals: DataFrame) -> DataFrame:
                 avg("team_points").alias("ppg"),
                 avg("team_fga").alias("fga_per_game"),
                 avg("team_fgm").alias("fgm_per_game"),
-                avg("team_3pa").alias("3pa_per_game"),
-                avg("team_3pm").alias("3pm_per_game"),
+                avg("team_3pa").alias("t3pa_per_game"),
+                avg("team_3pm").alias("t3pm_per_game"),
                 avg("team_reb").alias("reb_per_game"),
                 avg("team_ast").alias("ast_per_game"),
                 avg("team_tov").alias("tov_per_game"),
@@ -239,8 +239,8 @@ def identify_playing_style(df_team_averages: DataFrame) -> DataFrame:
             )
             .withColumn(
                 "style_shooting",
-                when(col("3pa_per_game") / col("fga_per_game") > 0.40, "Three Heavy")
-                .when(col("3pa_per_game") / col("fga_per_game") < 0.30, "Inside Game")
+                when(col("t3pa_per_game") / col("fga_per_game") > 0.40, "Three Heavy")
+                .when(col("t3pa_per_game") / col("fga_per_game") < 0.30, "Inside Game")
                 .otherwise("Balanced")
             )
             .withColumn(

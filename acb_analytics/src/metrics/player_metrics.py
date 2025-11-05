@@ -411,17 +411,28 @@ def get_player_summary_stats(df: DataFrame, min_minutes: float = 10.0) -> DataFr
                    spark_sum("tapones_favor").alias("tapones_totales"),
                    spark_sum("perdidas").alias("perdidas_totales"),
 
-                   # Promedios
+                   # Promedios básicos
                    avg("puntos").alias("puntos_promedio"),
                    avg("rebotes_totales").alias("rebotes_promedio"),
                    avg("asistencias").alias("asistencias_promedio"),
                    avg("plus_minus").alias("plus_minus_promedio"),
 
-                   # Eficiencia
+                   # Métricas avanzadas de eficiencia
                    avg("ts_percentage").alias("ts_percentage_avg"),
                    avg("efg_percentage").alias("efg_percentage_avg"),
                    avg("per_simple").alias("per_avg"),
+                   avg("usage_rate_simple").alias("usage_rate_avg"),
+
+                   # Métricas de playmaking
                    avg("ast_to_tov").alias("ast_to_tov_avg"),
+                   avg("assist_ratio").alias("assist_ratio_avg"),
+                   avg("turnover_ratio").alias("turnover_ratio_avg"),
+
+                   # Métricas adicionales
+                   avg("reb_per_minute").alias("reb_per_minute_avg"),
+                   avg("points_per_shot").alias("points_per_shot_avg"),
+                   avg("three_point_rate").alias("three_point_rate_avg"),
+                   avg("free_throw_rate").alias("free_throw_rate_avg"),
 
                    # Porcentajes de tiro
                    avg("t2_porcentaje").alias("t2_porcentaje_avg"),

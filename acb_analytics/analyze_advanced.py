@@ -151,7 +151,7 @@ def main():
         df_clustered_teams, team_kmeans = cluster_teams_by_style(df_team_avg, n_clusters=3)
 
         print("\n🎯 EQUIPOS AGRUPADOS POR ESTILO:")
-        df_clustered_teams.select("equipo", "style_cluster", "pace_avg", "3pa_per_game", "ast_per_game").show(truncate=False)
+        df_clustered_teams.select("equipo", "style_cluster", "pace_avg", "t3pa_per_game", "ast_per_game").show(truncate=False)
 
         # ==================================================
         # PASO 7: Análisis de consistencia

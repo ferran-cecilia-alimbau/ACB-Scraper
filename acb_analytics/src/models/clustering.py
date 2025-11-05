@@ -166,7 +166,7 @@ def cluster_teams_by_style(df_team_avg: DataFrame, n_clusters: int = 3) -> tuple
 
     feature_cols = [
         "pace_avg",
-        "3pa_per_game",
+        "t3pa_per_game",
         "ast_per_game",
         "efg_percent_avg",
         "tov_percent_avg"
@@ -215,7 +215,7 @@ def interpret_team_clusters(df_clustered: DataFrame) -> DataFrame:
                         .groupBy("style_cluster")
                         .agg({
                             "pace_avg": "avg",
-                            "3pa_per_game": "avg",
+                            "t3pa_per_game": "avg",
                             "ast_per_game": "avg",
                             "efg_percent_avg": "avg"
                         }))
