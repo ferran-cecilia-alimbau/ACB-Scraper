@@ -353,7 +353,7 @@ def calculate_all_advanced_metrics(df: DataFrame) -> DataFrame:
     logger.info("Calculando métricas avanzadas de jugadores...")
 
     # Primero asegurar que tenemos las columnas calculadas necesarias
-    from ..utils.spark_utils import (
+    from utils.spark_utils import (
         convert_minutes_to_float,
         calculate_field_goal_attempts,
         calculate_field_goals_made
