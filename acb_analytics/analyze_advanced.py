@@ -16,6 +16,7 @@ Uso:
 import sys
 from pathlib import Path
 import logging
+from pyspark.sql.functions import col
 
 # Añadir src al path
 sys.path.insert(0, str(Path(__file__).parent / "src"))

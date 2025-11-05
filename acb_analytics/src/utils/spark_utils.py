@@ -11,31 +11,35 @@ logger = logging.getLogger(__name__)
 
 
 def create_spark_session(app_name: str = "ACB Analytics",
-                         memory: str = "4g",
-                         cores: str = "*") -> SparkSession:
+                         memory: str = "4g") -> SparkSession:
     """
     Crea y configura una sesión de Spark optimizada para análisis.
 
     Args:
         app_name: Nombre de la aplicación Spark
         memory: Memoria para el executor (ej: "4g", "8g")
-        cores: Número de cores a usar ("*" para todos)
 
     Returns:
         SparkSession configurada
     """
+    import os
+
+    # Detectar número de cores disponibles
+    num_cores = os.cpu_count() or 4  # Default a 4 si no se puede detectar
+
     spark = (SparkSession.builder
              .appName(app_name)
              .config("spark.driver.memory", memory)
              .config("spark.executor.memory", memory)
              .config("spark.sql.shuffle.partitions", "200")
-             .config("spark.default.parallelism", cores)
+             .config("spark.default.parallelism", str(num_cores * 2))  # 2x cores como string
              .config("spark.sql.adaptive.enabled", "true")
              .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
              .getOrCreate())
 
     logger.info(f"Spark session creada: {app_name}")
     logger.info(f"Spark version: {spark.version}")
+    logger.info(f"Cores detectados: {num_cores}, parallelism configurado: {num_cores * 2}")
 
     return spark
 
