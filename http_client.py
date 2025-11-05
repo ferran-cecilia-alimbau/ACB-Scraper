@@ -18,9 +18,38 @@ import constants as const
 
 logger = logging.getLogger('basketball_scraper')
 
-# Variable global para controlar el tiempo entre peticiones
-last_request_time = 0
-rate_limit_lock = asyncio.Lock()
+
+class RateLimiter:
+    """Controlador de rate limiting para peticiones HTTP."""
+
+    def __init__(self, rate_limit: float = 1.0):
+        """
+        Inicializa el rate limiter.
+
+        Args:
+            rate_limit: Tiempo mínimo en segundos entre peticiones
+        """
+        self._last_request_time = 0.0
+        self._lock = asyncio.Lock()
+        self._rate_limit = rate_limit
+
+    async def wait_if_needed(self):
+        """Espera si es necesario para respetar el rate limit."""
+        async with self._lock:
+            current_time = time.time()
+            time_since_last = current_time - self._last_request_time
+
+            if time_since_last < self._rate_limit:
+                wait_time = self._rate_limit - time_since_last
+                logger.debug(f"Esperando {wait_time:.2f}s entre peticiones")
+                await asyncio.sleep(wait_time)
+
+            self._last_request_time = time.time()
+
+
+# Instancia global del rate limiter (puede ser reemplazada si es necesario)
+_default_rate_limiter = RateLimiter()
+
 
 @retry(
     retry=retry_if_exception_type((ClientError, asyncio.TimeoutError)),
@@ -52,21 +81,12 @@ async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str
     """
     if not url:
         raise ValueError("La URL no puede estar vacía")
-    
-    # Control simple de velocidad de peticiones
-    global last_request_time
-    async with rate_limit_lock:
-        current_time = time.time()
-        time_since_last = current_time - last_request_time
-        rate_limit = config.get('rate_limit', const.DEFAULT_RATE_LIMIT)
-        
-        if time_since_last < rate_limit:
-            wait_time = rate_limit - time_since_last
-            logger.debug(f"Esperando {wait_time:.2f}s entre peticiones")
-            await asyncio.sleep(wait_time)
-        
-        last_request_time = time.time()
-    
+
+    # Control de velocidad de peticiones usando el rate limiter
+    rate_limit = config.get('rate_limit', const.DEFAULT_RATE_LIMIT)
+    _default_rate_limiter._rate_limit = rate_limit
+    await _default_rate_limiter.wait_if_needed()
+
     # Obtener headers y parámetros
     headers = {'User-Agent': config.get('user_agent', const.DEFAULT_USER_AGENT)}
     timeout = aiohttp.ClientTimeout(total=config.get('timeout', 30))
@@ -79,9 +99,9 @@ async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str
             
             # Obtener el contenido
             content = await response.text()
-            
+
             # Verificar que el contenido es válido
-            if not content or len(content) < 100:
+            if not content or len(content) < const.MIN_VALID_HTML_LENGTH:
                 logger.warning(f"Respuesta demasiado corta de {url}: {len(content)} bytes")
                 raise ClientResponseError(
                     request_info=response.request_info,

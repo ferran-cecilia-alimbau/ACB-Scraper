@@ -56,9 +56,9 @@ async def get_game_data(
             # Obtener el HTML del partido
             logger.info(f"Obteniendo datos del partido {game_id} desde {url}")
             html = await fetch(session, url, config)
-            
+
             # Validar que hay contenido HTML
-            if not html or len(html) < 200:
+            if not html or len(html) < const.MIN_VALID_HTML_LENGTH:
                 logger.error(f"El HTML del partido {game_id} es demasiado corto: {len(html)} bytes")
                 return None
                 

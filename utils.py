@@ -70,14 +70,14 @@ def split_birthplace(birthplace_str: str) -> Tuple[str, str]:
     try:
         if ',' not in birthplace_str:
             return birthplace_str.strip(), ""
-        
+
         parts = birthplace_str.split(',', 1)
         city = parts[0].strip()
         country = parts[1].strip()
         return city, country
     except Exception as e:
         logger.warning(f"Error al procesar lugar de nacimiento '{birthplace_str}': {str(e)}")
-        return birthplace_str.strip(), ""
+        return birthplace_str.strip() if birthplace_str else "", ""
 
 
 def split_birth_info(birth_info: str) -> Tuple[str, int]:
@@ -97,18 +97,18 @@ def split_birth_info(birth_info: str) -> Tuple[str, int]:
         # Si no tiene el formato esperado
         if '(' not in birth_info:
             return birth_info.strip(), 0
-            
+
         # Separar fecha y edad
         birth_date = birth_info.split('(')[0].strip()
-        
+
         # Extraer solo el número de la edad
         age_match = re.search(r'\((\d+)', birth_info)
         age = int(age_match.group(1)) if age_match else 0
-        
+
         return birth_date, age
     except Exception as e:
         logger.warning(f"Error al procesar fecha y edad '{birth_info}': {str(e)}")
-        return birth_info.strip(), 0
+        return birth_info.strip() if birth_info else "", 0
 
 
 def normalize_position(position: str) -> str:

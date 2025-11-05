@@ -21,6 +21,9 @@ RETRY_MULTIPLIER = 1
 DEFAULT_RATE_LIMIT = 1
 MAX_CONCURRENT_REQUESTS = 5
 
+# Validación de HTML
+MIN_VALID_HTML_LENGTH = 200  # Bytes mínimos para considerar HTML válido
+
 # Procesamiento de datos
 CHUNK_SIZE = 10000  # Tamaño para procesamiento eficiente en memoria
 
