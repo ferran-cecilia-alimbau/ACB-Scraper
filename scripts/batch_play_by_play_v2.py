@@ -33,12 +33,23 @@ class BatchHumanLikeScraper:
             print("   [INFO] Configurando Chrome...")
             
             options = Options()
+            # Opciones básicas
             options.add_argument('--disable-blink-features=AutomationControlled')
             options.add_argument('--window-size=1920,1080')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--headless=new')  # Modo headless: Chrome sin interfaz gráfica
             options.add_argument('--disable-gpu')
+            
+            # Opciones adicionales para Ubuntu Server (sin GUI)
+            options.add_argument('--disable-software-rasterizer')
+            options.add_argument('--disable-extensions')
+            options.add_argument('--disable-setuid-sandbox')
+            options.add_argument('--remote-debugging-port=9222')  # Puerto fijo para DevTools
+            options.add_argument('--disable-web-security')
+            options.add_argument('--disable-features=VizDisplayCompositor')
+            
+            # Opciones experimentales
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
             options.add_experimental_option('useAutomationExtension', False)
             
