@@ -4,6 +4,7 @@ Parsers para extraer datos de las páginas HTML de la ACB.
 import logging
 import re
 import constants as const
+import asyncio
 
 from typing import Dict, List, Optional, Tuple, Any, Set
 from bs4 import BeautifulSoup
