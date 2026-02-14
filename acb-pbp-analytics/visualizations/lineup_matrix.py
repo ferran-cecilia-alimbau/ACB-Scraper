@@ -39,7 +39,9 @@ def create_shared_minutes_heatmap(
         xaxis=dict(tickangle=45),
         height=600,
         width=700,
-        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="rgba(250,250,250,0.85)"),
     )
 
     return fig
@@ -65,7 +67,7 @@ def create_lineup_ratings_table(
     combined = pd.concat([best, worst])
 
     colors = [
-        "#e8f5e9" if nr > 0 else "#ffebee"
+        "rgba(76,175,80,0.2)" if nr > 0 else "rgba(244,67,54,0.2)"
         for nr in combined["net_rating"]
     ]
 
@@ -87,13 +89,15 @@ def create_lineup_ratings_table(
             ],
             fill_color=[colors] * 6,
             align="left",
-            font=dict(size=11),
+            font=dict(color="rgba(250,250,250,0.85)", size=11),
         ),
     )])
 
     fig.update_layout(
         title=f"Top/Bottom {top_n} quintetos por Net Rating",
         height=max(400, len(combined) * 30 + 100),
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="rgba(250,250,250,0.85)"),
     )
 
     return fig

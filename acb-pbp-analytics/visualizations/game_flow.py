@@ -48,7 +48,7 @@ def create_score_diff_timeline(
     # Marcadores de cuartos
     for q in [1, 2, 3]:
         fig.add_vline(
-            x=q * 10, line_dash="dot", line_color="lightgray",
+            x=q * 10, line_dash="dot", line_color="rgba(250,250,250,0.2)",
             annotation_text=f"Fin {q}C", annotation_position="top"
         )
 
@@ -76,7 +76,9 @@ def create_score_diff_timeline(
         xaxis=dict(range=[0, max_time]),
         height=400,
         showlegend=False,
-        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="rgba(250,250,250,0.85)"),
     )
 
     return fig
@@ -114,14 +116,16 @@ def create_score_evolution(
     ))
 
     for q in [1, 2, 3]:
-        fig.add_vline(x=q * 10, line_dash="dot", line_color="lightgray")
+        fig.add_vline(x=q * 10, line_dash="dot", line_color="rgba(250,250,250,0.2)")
 
     fig.update_layout(
         title=f"{local_name} vs {visitante_name} - Marcador",
         xaxis_title="Minutos",
         yaxis_title="Puntos",
         height=400,
-        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="rgba(250,250,250,0.85)"),
     )
 
     return fig

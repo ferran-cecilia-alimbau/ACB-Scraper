@@ -200,9 +200,7 @@ def detect_possessions(game_pbp: pd.DataFrame) -> list[dict]:
                 "ended_by": "defensive_rebound",
                 "periodo": row["periodo"],
             })
-            current_team = _other_team(current_team) if team != current_team else team
-            # Si el reboteador es del mismo equipo, el otro equipo tenía posesión
-            # El rebote defensivo lo coge el equipo que NO tiraba
+            # El rebote defensivo lo coge el equipo del reboteador → nueva posesión
             current_team = team
             poss_events = []
             poss_start_sec = abs_sec
