@@ -2,6 +2,8 @@
 
 Este documento lista las mejoras identificadas pero no implementadas aún, organizadas por prioridad.
 
+> **Nota**: Los items 4-5 aplican a `scripts/batch_play_by_play.py` (v1). Existe una v2 (`scripts/batch_play_by_play_v2.py`) con implementación diferente que usa webdriver-manager + opciones de Chromium para Ubuntu Server.
+
 ## ~~🟡 Nivel 2 - Alta Prioridad~~ ✅ COMPLETADO
 
 ### ~~1. Refactorizar Variables Globales a Clase RateLimiter~~ ✅
@@ -84,7 +86,7 @@ except Exception as e:
 ## 🟢 Nivel 3 - Mejoras Opcionales (Considerar)
 
 ### 4. Optimizar Timeout Excesivo
-**Ubicación**: `scripts/batch_play_by_play.py:225`
+**Ubicación**: `scripts/batch_play_by_play.py:225` (v1 — v2 tiene implementación diferente)
 
 **Problema Actual**:
 ```python
@@ -125,7 +127,7 @@ while time.time() - start_time < scroll_timeout:
 ---
 
 ### 5. Mejorar Gestión de Recursos en ThreadPoolExecutor
-**Ubicación**: `scripts/batch_play_by_play.py:322-343`
+**Ubicación**: `scripts/batch_play_by_play.py:322-343` (v1 — v2 tiene implementación diferente)
 
 **Problema Actual**:
 - ThreadPoolExecutor sin context manager completo
@@ -197,12 +199,11 @@ logger = logging.getLogger(__name__)  # Usa el nombre del módulo
 - Mejor trazabilidad del origen de cada log
 - Estándar de Python
 
-**Cambios Necesarios**:
-1. `main.py`: `logger = logging.getLogger(__name__)`
-2. `scraper.py`: `logger = logging.getLogger(__name__)`
-3. `parsers.py`: `logger = logging.getLogger(__name__)`
-4. `http_client.py`: `logger = logging.getLogger(__name__)`
-5. `utils.py`: `logger = logging.getLogger(__name__)`
+**Cambios Necesarios** (4 archivos usan `getLogger('basketball_scraper')`):
+1. `scraper.py`: `logger = logging.getLogger(__name__)`
+2. `parsers.py`: `logger = logging.getLogger(__name__)`
+3. `http_client.py`: `logger = logging.getLogger(__name__)`
+4. `utils.py`: `logger = logging.getLogger(__name__)`
 
 **Impacto**: Logs más profesionales y trazables.
 
@@ -287,5 +288,5 @@ signal.signal(signal.SIGTERM, signal_handler)
 - Cada mejora debe testearse en entorno de desarrollo antes de producción
 - Mantener este documento actualizado al implementar mejoras
 
-**Última actualización**: 2024-11-04
+**Última actualización**: 2026-02-07
 **Estado del proyecto**: ✅ Producción-ready con mejoras pendientes opcionales

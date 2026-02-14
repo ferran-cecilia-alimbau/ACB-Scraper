@@ -1,303 +1,210 @@
-# Basketball Stats Scraper
+# ACB-Scraper
 
-## Descripción
+Scraper de estadísticas + motor analítico play-by-play + dashboard Streamlit para la Liga Endesa ACB.
 
-**Basketball Stats Scraper** es un proyecto de scraping de alto rendimiento diseñado para recopilar estadísticas detalladas de partidos de baloncesto desde la web de ACB. El scraper procesa una lista de identificadores de partidos definidos en `match_ids.json`, descarga la información disponible y la almacena en archivos CSV para su posterior análisis.
+## Componentes
 
-El proyecto utiliza tecnologías asíncronas con **procesamiento paralelo** para optimizar la velocidad y eficiencia del scraping, respetando las limitaciones impuestas por el servidor web objetivo. Incluye un sistema robusto de reintentos, control de concurrencia y seguimiento visual del progreso.
+| Componente | Descripción | Ubicación |
+|------------|-------------|-----------|
+| **Scraper** | Scraping asíncrono de estadísticas y play-by-play desde acb.com | Raíz del proyecto + `scripts/` |
+| **Dashboard** | Dashboard interactivo Streamlit con 8 páginas de análisis | `acb-dashboard/` |
+| **Motor PBP** | Motor de análisis play-by-play con 8 módulos de análisis | `acb-pbp-analytics/` |
 
-## Características Principales
+## Estructura del proyecto
 
-- **🚀 Procesamiento Paralelo**: Procesa múltiples partidos simultáneamente con control de concurrencia
-- **📊 Barra de Progreso**: Visualización en tiempo real del avance
-- **🔄 Reintentos Inteligentes**: Sistema de reintentos con backoff exponencial
-- **💾 Caché de Perfiles**: Evita descargar perfiles de jugadores duplicados
-- **📝 Logging Detallado**: Registro completo de todas las operaciones
-- **⚡ Alto Rendimiento**: ~40-50% más rápido que el procesamiento secuencial
-
-## Estructura del Proyecto
-
-### Archivos Principales
-
-- **`config.json`**: Archivo de configuración donde se definen los parámetros clave del scraping, incluyendo URLs base, archivos de salida, límites de concurrencia y parámetros de control.
-
-- **`main.py`**: Punto de entrada del proyecto. Coordina el proceso de scraping, carga la configuración, procesa los partidos y almacena los resultados.
-
-- **`scraper.py`**: Módulo principal del scraper que implementa la lógica de recolección de datos con procesamiento paralelo. Utiliza `aiohttp` y `asyncio` para manejar múltiples solicitudes simultáneas con control de concurrencia.
-
-- **`parsers.py`**: Contiene funciones para extraer y transformar datos de las páginas HTML obtenidas, como información de partidos, estadísticas de jugadores y perfiles de jugadores.
-
-- **`http_client.py`**: Implementa un cliente HTTP asíncrono con funcionalidades avanzadas como rate limiting y manejo de reintentos exponenciales.
-
-- **`utils.py`**: Proporciona utilidades y funciones auxiliares para tareas comunes como limpieza de datos, normalización y validación.
-
-- **`constants.py`**: Centraliza valores constantes, URLs, selectores HTML y mapeos utilizados en todo el proyecto.
-
-- **`logger.py`**: Módulo para la configuración del sistema de logging, permitiendo el registro detallado de eventos durante la ejecución del scraper.
-
-### Scripts Auxiliares
-
-- **`scripts/get_match_ids.py`**: Script independiente para extraer IDs de partidos de la web de ACB y guardarlos en `match_ids.json`.
-
-- **`scripts/batch_play_by_play.py`**: Script especializado para extraer datos de play-by-play usando Selenium con Chrome headless. Procesa múltiples partidos de forma concurrente y genera archivos CSV con todas las jugadas detalladas de cada partido.
-
-- **`scripts/verify_pbp_completeness.py`**: Utilidad para verificar la completitud de los archivos CSV de play-by-play. Identifica partidos con datos incompletos basándose en marcadores clave como "Cinco Inicial" y "Final del Partido".
-
-### Archivos de Salida
-
-Los datos se almacenan en archivos CSV dentro del directorio `data/output/`:
-
-- **`estadisticas_todos_partidos.csv`**: Estadísticas individuales de jugadores de todos los partidos procesados
-- **`estadisticas_partido.csv`**: Información general de cada partido (fecha, resultado, árbitros, etc.)
-- **`estadisticas_equipos_por_partido.csv`**: Estadísticas totales de cada equipo por partido
-- **`perfiles_jugadores.csv`**: Información detallada de los perfiles de jugadores
-
-Los datos de play-by-play se almacenan en `data/play_by_play/`:
-- **`play_by_play_[ID].csv`**: Registro detallado de todas las jugadas de un partido específico, incluyendo tiempo, marcador, equipo, jugador y tipo de acción
-
-## Requisitos
-
-### Python
-Python 3.8 o superior
-
-### Dependencias
-
-```bash
-pip install -r requirements.txt
+```
+ACB-Scraper/
+├── main.py, scraper.py, parsers.py, ...   # Scraper core
+├── config.json                             # Configuración del scraper
+├── scripts/
+│   ├── get_match_ids.py                    # Descubre IDs de partidos
+│   ├── batch_play_by_play_v2.py            # Scraper PBP (Selenium)
+│   ├── batch_play_by_play.py               # PBP v1 (legacy)
+│   └── verify_pbp_completeness.py          # Verificación de PBP
+├── data/
+│   ├── input/match_ids.json
+│   ├── output/*.csv                        # 4 CSVs de estadísticas
+│   └── play_by_play/play_by_play_*.csv     # 152 ficheros PBP
+├── acb-dashboard/
+│   ├── app.py                              # Entry point Streamlit
+│   ├── pages/ (8 páginas)
+│   └── src/ (6 módulos)
+├── acb-pbp-analytics/
+│   ├── src/ (4 módulos core)
+│   ├── analysis/ (8 módulos)
+│   └── visualizations/ (2 módulos)
+└── docs/
 ```
 
-#### Dependencias principales:
+## Scraper
 
-- `aiohttp`: Manejo de solicitudes HTTP asíncronas
-- `asyncio`: Biblioteca estándar para concurrencia asíncrona
-- `beautifulsoup4`: Parseo de HTML
-- `pandas`: Manipulación y análisis de datos
-- `tenacity`: Gestión de reintentos con lógica personalizable
-- `tqdm`: Visualización de progreso en la consola
-- `requests`: Solicitudes HTTP simples (usado en get_match_ids.py)
-- `selenium`: Automatización de navegador para extracción de play-by-play
-- `undetected-chromedriver`: Driver de Chrome optimizado para evitar detección
-- `beautifulsoup4`: Parseo adicional de HTML para datos complejos
+### Archivos principales
 
-## Uso
+| Archivo | Función |
+|---------|---------|
+| `main.py` | Punto de entrada, coordina scraping y almacena resultados |
+| `scraper.py` | Lógica de scraping con `aiohttp` + procesamiento paralelo |
+| `parsers.py` | Extracción de datos de HTML (partidos, jugadores, perfiles) |
+| `http_client.py` | Cliente HTTP asíncrono con rate limiting y reintentos |
+| `utils.py` | Utilidades de limpieza y normalización de datos |
+| `constants.py` | URLs, selectores HTML y mapeos constantes |
+| `logger.py` | Configuración del sistema de logging |
 
-### 1. Extracción de IDs de Partidos
+### Scripts auxiliares
 
-Antes de ejecutar el scraper principal, obtén los IDs de partidos de la temporada:
+| Script | Función |
+|--------|---------|
+| `scripts/get_match_ids.py` | Extrae IDs de partidos del calendario ACB |
+| `scripts/batch_play_by_play_v2.py` | Scraper PBP con Selenium + webdriver-manager (versión actual) |
+| `scripts/batch_play_by_play.py` | Scraper PBP v1 (legacy, usa undetected-chromedriver) |
+| `scripts/verify_pbp_completeness.py` | Verifica completitud de ficheros PBP |
+
+### Uso
 
 ```bash
-cd scripts
-python get_match_ids.py
-cd ..
+# 1. Obtener IDs de partidos
+python scripts/get_match_ids.py
+
+# 2. Scrapear estadísticas (4 CSVs)
+python main.py
+
+# 3. Scrapear play-by-play
+python scripts/batch_play_by_play_v2.py
 ```
 
-Esto generará el archivo `data/input/match_ids.json` con los IDs de los partidos a procesar.
-
-### 2. Configuración
-
-El archivo `config.json` contiene todos los parámetros configurables:
+### Configuración (`config.json`)
 
 ```json
 {
-    "base_url": "https://www.acb.com/partido/estadisticas/id/",
-    "output_file": "data/output/estadisticas_todos_partidos.csv",
-    "output_file_game": "data/output/estadisticas_partido.csv",
-    "output_file_team_totals": "data/output/estadisticas_equipos_por_partido.csv",
-    "output_file_player_profiles": "data/output/perfiles_jugadores.csv",
-    "max_retries": 3,
-    "retry_delay": 5,
-    "user_agent": "BasketballStatsScraper/1.0",
-    "rate_limit": 1,
     "max_concurrent": 5,
     "batch_size": 20,
     "batch_pause": 2,
+    "rate_limit": 1,
+    "max_retries": 3,
     "timeout": 30
 }
 ```
 
-#### Parámetros de Paralelización:
+- `max_concurrent`: Peticiones simultáneas (1-10, recomendado: 5)
+- `batch_size`: Partidos por lote (10-50, recomendado: 20)
+- `batch_pause`: Pausa en segundos entre lotes
+- `rate_limit`: Segundos mínimos entre peticiones
 
-- **`max_concurrent`**: Número máximo de peticiones simultáneas (1-10, recomendado: 5)
-- **`batch_size`**: Número de partidos por lote (10-50, recomendado: 20)
-- **`batch_pause`**: Pausa en segundos entre lotes (1-5, recomendado: 2)
-- **`timeout`**: Tiempo máximo de espera por petición en segundos
+### Rendimiento
 
-### 3. Ejecución
+- Procesamiento paralelo con `aiohttp` + `asyncio`
+- Búsquedas O(1) con sets para verificación de IDs
+- Rate limiting entre lotes (no bloqueante)
+- ~0.5-1 segundo/partido efectivo (~40-50% más rápido que secuencial)
 
-Para iniciar el proceso de scraping:
+## Dashboard (`acb-dashboard/`)
+
+Dashboard Streamlit interactivo para análisis estadístico de la Liga Endesa. Diseñado con tema oscuro.
+
+### Ejecución
 
 ```bash
+cd acb-dashboard
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+### Páginas
+
+| # | Página | Descripción |
+|---|--------|-------------|
+| 1 | Clasificación | Tabla + ORtg/DRtg scatter + diferencial + evolución |
+| 2 | Equipo | Ficha de equipo: ofensivo/defensivo/resultados/jugadores |
+| 3 | Jugador | Ficha de jugador: radar + evolución + splits + rankings |
+| 4 | Comparador | Comparación: jugador vs jugador, equipo vs equipo, multi-jugador |
+| 5 | Partido | Box score + Four Factors + PBP análisis completo |
+| 6 | Rankings | Líderes estadísticos + rankings de equipos + mejores actuaciones |
+| 7 | Quintetos | Análisis de lineups, minutos compartidos, stints |
+| 8 | Clutch | Rendimiento en los últimos minutos de partidos igualados |
+
+### Módulos (`src/`)
+
+| Módulo | Función |
+|--------|---------|
+| `data_loader.py` | Carga y caché de CSVs |
+| `preprocessing.py` | Transformación y normalización de datos |
+| `metrics.py` | Cálculos estadísticos (ORtg, DRtg, Four Factors, etc.) |
+| `charts.py` | Gráficos Plotly + CSS personalizado para tema oscuro |
+| `constants.py` | Mapeos de equipos, colores, PBP game remap |
+| `pbp_bridge.py` | Puente entre dashboard y motor PBP (resuelve ficheros PBP) |
+
+## Motor PBP (`acb-pbp-analytics/`)
+
+Motor de análisis play-by-play. Procesa los ficheros PBP crudos y genera métricas avanzadas.
+
+### Módulos core (`src/`)
+
+| Módulo | Función |
+|--------|---------|
+| `pbp_loader.py` | Carga y parseo de ficheros PBP |
+| `time_utils.py` | Conversión de tiempos (periodos, reloj, segundos absolutos) |
+| `lineup_tracker.py` | Seguimiento de quintetos en pista a partir de eventos PBP |
+| `possession_engine.py` | Estimación de posesiones a partir de eventos |
+
+### Módulos de análisis (`analysis/`)
+
+| Módulo | Función |
+|--------|---------|
+| `clutch.py` | Rendimiento en situaciones clutch |
+| `fouls.py` | Análisis de faltas por jugador/equipo/periodo |
+| `game_state_performance.py` | Rendimiento según estado del marcador |
+| `lineup_combos.py` | Estadísticas de combinaciones de jugadores |
+| `momentum.py` | Detección de rachas y cambios de momentum |
+| `pace.py` | Ritmo de juego (posesiones/minuto) |
+| `shooting_patterns.py` | Patrones de tiro por zona, periodo, situación |
+| `substitutions.py` | Análisis de rotaciones y cambios |
+
+### Visualizaciones (`visualizations/`)
+
+| Módulo | Función |
+|--------|---------|
+| `game_flow.py` | Gráfico de flujo de partido (marcador en el tiempo) |
+| `lineup_matrix.py` | Matriz de minutos compartidos entre jugadores |
+
+## Datos
+
+### CSVs de estadísticas (`data/output/`)
+
+| Archivo | Contenido | Columnas |
+|---------|-----------|----------|
+| `estadisticas_todos_partidos.csv` | Stats individuales por jugador y partido | 30 |
+| `estadisticas_partido.csv` | Info general de cada partido | 15 |
+| `estadisticas_equipos_por_partido.csv` | Totales de equipo por partido | 25 |
+| `perfiles_jugadores.csv` | Datos biográficos de jugadores | 13 |
+
+### Play-by-play (`data/play_by_play/`)
+
+152 ficheros `play_by_play_[ID].csv` con todas las jugadas de cada partido. Cada registro contiene: id_partido, periodo, tiempo, marcador, equipo (LOCAL/VISITANTE), jugador, acción.
+
+**Bug conocido**: 75 de los 152 ficheros contienen datos de un partido diferente al indicado por el nombre del fichero (bug off-by-one en el scraper). Solo 77 partidos tienen datos PBP correctos. La solución está implementada en `acb-dashboard/src/constants.py` (diccionarios `PBP_GAME_REMAP` y `PBP_REVERSE_REMAP`) y en `acb-dashboard/src/pbp_bridge.py` que resuelve el fichero correcto automáticamente.
+
+### Normalización de nombres de equipos
+
+Los datos de partidos usan nombres cortos (ej. "Baskonia") mientras que los perfiles de jugadores usan nombres largos con sponsor (ej. "Kosner Baskonia"). El mapeo entre ambos está en `acb-dashboard/src/constants.py`.
+
+## Requisitos
+
+- **Python 3.12**
+- Dependencias por componente:
+  - `requirements.txt` (scraper): aiohttp, beautifulsoup4, pandas, selenium, webdriver-manager, tenacity, tqdm
+  - `acb-dashboard/requirements.txt`: streamlit, plotly, pandas, numpy
+  - `acb-pbp-analytics/requirements.txt`: pandas, numpy, plotly
+
+## Quick Start
+
+```bash
+# Scraping
+python scripts/get_match_ids.py
 python main.py
+python scripts/batch_play_by_play_v2.py
+
+# Dashboard
+cd acb-dashboard
+pip install -r requirements.txt
+streamlit run app.py
 ```
-
-El scraper:
-1. Cargará la configuración y los IDs de partidos
-2. Identificará qué partidos ya han sido procesados
-3. Procesará los partidos nuevos en paralelo
-4. Mostrará una barra de progreso en tiempo real
-5. Guardará los resultados en los archivos CSV correspondientes
-
-### 4. Extracción de Play-by-Play
-
-Para extraer datos detallados de jugadas:
-
-```bash
-cd scripts
-python batch_play_by_play.py
-cd ..
-```
-
-Este script:
-1. Usa Selenium para navegar por las páginas de play-by-play
-2. Extrae todas las jugadas de cada partido
-3. Genera archivos CSV individuales para cada partido
-4. Ofrece opciones para procesar todos los partidos o un rango específico
-
-### 5. Verificación de Completitud
-
-Para verificar que los archivos de play-by-play están completos:
-
-```bash
-cd scripts
-python verify_pbp_completeness.py
-cd ..
-```
-
-Este script identifica partidos con datos incompletos basándose en:
-- Presencia de al menos 9 eventos "Cinco Inicial"
-- Presencia de "Final del Partido"
-
-### 6. Reprocesar Partidos
-
-Si necesitas reprocesar partidos específicos:
-
-1. Haz backup de los archivos actuales:
-```bash
-cp data/output/estadisticas_partido.csv data/output/estadisticas_partido.csv.backup
-cp data/output/estadisticas_equipos_por_partido.csv data/output/estadisticas_equipos_por_partido.csv.backup
-```
-
-2. Borra las líneas correspondientes de **ambos** archivos CSV
-
-3. Ejecuta el scraper nuevamente
-
-## Características de Rendimiento
-
-### Procesamiento Paralelo
-
-El scraper implementa un sistema sofisticado de procesamiento paralelo:
-
-1. **División en Lotes**: Los partidos se dividen en lotes configurables
-2. **Control de Concurrencia**: Semáforo que limita las peticiones simultáneas
-3. **Pausas entre Lotes**: Evita saturar el servidor
-4. **Caché Dinámico**: Actualización en tiempo real del caché de perfiles
-
-### Optimizaciones Implementadas
-
-- **Cliente HTTP Asíncrono**: Maximiza la velocidad con `aiohttp`
-- **Rate Limiting**: Control de velocidad entre peticiones
-- **Procesamiento Eficiente**: DataFrames procesados por chunks para grandes volúmenes
-- **Búsquedas O(1)**: Uso de sets para verificación de IDs existentes
-- **Reintentos Inteligentes**: Backoff exponencial para fallos temporales
-
-### Rendimiento Esperado
-
-- **Procesamiento secuencial**: ~2-3 segundos/partido
-- **Procesamiento paralelo**: ~0.5-1 segundo/partido efectivo
-- **Mejora**: 40-50% más rápido
-- **300 partidos**: ~8-10 minutos (antes: ~15 minutos)
-
-## Logging
-
-Los logs se almacenan en `data/logs/` con timestamp único:
-
-```
-data/logs/scraper_20240105_123045.log
-```
-
-Niveles de logging:
-- **INFO**: Operaciones normales y progreso
-- **WARNING**: Situaciones anómalas pero recuperables
-- **ERROR**: Errores que impiden procesar un partido
-- **DEBUG**: Información detallada para debugging
-
-## Consideraciones
-
-### Respeto al Servidor
-
-- Rate limiting configurable
-- Pausas entre lotes
-- Límite de concurrencia conservador
-- Reintentos con espera exponencial
-
-### Robustez
-
-- Manejo exhaustivo de errores
-- Continúa procesando aunque fallen partidos individuales
-- Validación de datos en múltiples puntos
-- Logs detallados para debugging
-
-### Escalabilidad
-
-- Configuración flexible para diferentes cargas
-- Procesamiento por chunks para grandes volúmenes
-- Caché eficiente de perfiles de jugadores
-
-## Solución de Problemas
-
-### Error 429 (Too Many Requests)
-- Reduce `max_concurrent` a 3 en `config.json`
-- Aumenta `rate_limit` a 2 segundos
-
-### Timeouts Frecuentes
-- Aumenta `timeout` a 45 o 60 segundos
-- Reduce `max_concurrent` para menor carga
-
-### Memoria Insuficiente
-- Reduce `batch_size` a 10
-- Procesa menos partidos por ejecución
-
-## Estructura de Datos
-
-### estadisticas_todos_partidos.csv
-Contiene estadísticas individuales de cada jugador por partido, incluyendo:
-- Identificación: id_partido, player_id, equipo, dorsal, nombre
-- Estadísticas: puntos, rebotes, asistencias, etc.
-- Métricas avanzadas: +/-, valoración
-
-### estadisticas_partido.csv
-Información general de cada partido:
-- Identificación: id_partido, jornada
-- Datos del encuentro: fecha, hora, pabellón, público
-- Resultados: puntuaciones finales y parciales
-- Árbitros
-
-### estadisticas_equipos_por_partido.csv
-Totales de equipo por partido, agregando todas las estadísticas individuales.
-
-### perfiles_jugadores.csv
-Información biográfica de jugadores:
-- Datos personales: nombre completo, fecha de nacimiento, nacionalidad
-- Datos físicos: altura, posición
-- Datos de equipo: dorsal, licencia
-
-### play_by_play_[ID].csv
-Registro detallado de jugadas por partido:
-- Identificación: id_partido, periodo, tiempo
-- Marcador: puntuación local y visitante en cada jugada
-- Acción: equipo, jugador, tipo de jugada (tiro, rebote, falta, etc.)
-- Estadísticas: información adicional sobre la jugada
-
-## Contribuciones
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## Licencia
-
-Este proyecto es de código abierto y está disponible bajo la licencia MIT.

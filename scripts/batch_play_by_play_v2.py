@@ -1,6 +1,7 @@
 # batch_play_by_play_v2.py
 # NUEVA VERSIÓN: Usa la nueva estructura HTML de ACB con MatchPlayByPlayCardWrapper
 
+import argparse
 import os
 import json
 import time
@@ -18,75 +19,139 @@ from selenium.common.exceptions import TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 
+script_dir = Path(__file__).resolve().parent
+
+
 class BatchHumanLikeScraper:
     """Procesador en lote que extrae Play-by-Play de forma concurrente."""
 
     def __init__(self):
-        script_dir = Path(__file__).resolve().parent
         self.output_dir = script_dir.parent / "data" / "play_by_play"
         os.makedirs(self.output_dir, exist_ok=True)
         self.driver_pool = queue.Queue()
+        self.score_lookup = self._load_score_lookup()
+
+    def _load_score_lookup(self):
+        """Carga resultados esperados desde estadisticas_partido.csv."""
+        game_info_path = script_dir.parent / "data" / "output" / "estadisticas_partido.csv"
+        lookup = {}
+        try:
+            with open(game_info_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    lookup[int(row['id_partido'])] = (
+                        int(row['resultado_local']),
+                        int(row['resultado_visitante']),
+                    )
+        except FileNotFoundError:
+            print("[AVISO] No se encontró estadisticas_partido.csv — verificación de marcador desactivada")
+        return lookup
 
     def setup_undetected_driver(self):
         """Configuración del driver de Chrome con webdriver-manager."""
         try:
             print("   [INFO] Configurando Chrome...")
-            
+
             options = Options()
             # Opciones básicas
             options.add_argument('--disable-blink-features=AutomationControlled')
             options.add_argument('--window-size=1920,1080')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--headless=new')  # Modo headless: Chrome sin interfaz gráfica
+            options.add_argument('--headless=new')
             options.add_argument('--disable-gpu')
-            
+
             # Opciones adicionales para Ubuntu Server (sin GUI)
             options.add_argument('--disable-software-rasterizer')
             options.add_argument('--disable-extensions')
             options.add_argument('--disable-setuid-sandbox')
-            options.add_argument('--remote-debugging-port=9222')  # Puerto fijo para DevTools
+            # Puerto debug fijo ELIMINADO — Chrome asigna puerto libre automáticamente
             options.add_argument('--disable-web-security')
             options.add_argument('--disable-features=VizDisplayCompositor')
-            
+
             # Opciones experimentales
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
             options.add_experimental_option('useAutomationExtension', False)
-            
-            # webdriver-manager descarga automáticamente el driver correcto
+
+            # webdriver-manager: usa caché local, sin descargar si ya existe
+            os.environ['WDM_LOCAL'] = '1'
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=options)
-            
+
             print("   [OK] Chrome iniciado correctamente")
             return driver
-            
+
         except Exception as e:
             print(f"   [ERROR FATAL] No se pudo inicializar Chrome: {e}")
             raise
 
-    def _scrape_and_process_game(self, game_id):
+    def _verify_score(self, game_id, extracted_data):
+        """Compara el marcador final del PBP con el resultado real.
+
+        Returns:
+            (ok, message) — ok=True si coincide o no hay datos de referencia.
+        """
+        if not self.score_lookup or game_id not in self.score_lookup:
+            return True, "Sin datos de referencia para verificar marcador"
+
+        expected_local, expected_visitor = self.score_lookup[game_id]
+
+        # Buscar último marcador en las jugadas extraídas
+        last_local, last_visitor = 0, 0
+        for row in extracted_data:
+            try:
+                local = int(row['marcador_local'])
+                visitor = int(row['marcador_visitante'])
+                if local > last_local or visitor > last_visitor:
+                    last_local = max(last_local, local)
+                    last_visitor = max(last_visitor, visitor)
+            except (ValueError, TypeError):
+                continue
+
+        if last_local == expected_local and last_visitor == expected_visitor:
+            return True, f"Marcador OK: {last_local}-{last_visitor}"
+
+        return False, (
+            f"MARCADOR NO COINCIDE: PBP={last_local}-{last_visitor}, "
+            f"esperado={expected_local}-{expected_visitor}"
+        )
+
+    def _scrape_and_process_game(self, game_id, force=False):
         """Procesa un único partido: navega, extrae y guarda."""
         output_filepath = os.path.join(self.output_dir, f"play_by_play_{game_id}.csv")
-        if os.path.exists(output_filepath):
+        if os.path.exists(output_filepath) and not force:
             return f"SALTADO: {game_id}"
 
         driver = self.driver_pool.get()
         try:
             print(f"[INFO]  Procesando partido {game_id}...")
-            
+
+            # Limpiar estado SPA: navegar a about:blank para desmontar DOM React
+            driver.get('about:blank')
+            time.sleep(0.5)
+
             url = f"https://live.acb.com/es/partidos/{game_id}/jugadas"
             driver.get(url)
-            
+
             # Esperar a que la página cargue los elementos de play-by-play
             print(f"   [INFO] Esperando carga de elementos play-by-play...")
             try:
+                # Fase 1: Si quedan elementos del partido anterior, esperar a que desaparezcan
+                existing = driver.find_elements(By.CSS_SELECTOR, "div[class*='MatchPlayByPlayCardWrapper']")
+                if existing:
+                    try:
+                        WebDriverWait(driver, 10).until(EC.staleness_of(existing[0]))
+                    except TimeoutException:
+                        pass
+
+                # Fase 2: Esperar elementos frescos del partido actual
                 WebDriverWait(driver, 30).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div[class*='MatchPlayByPlayCardWrapper']"))
                 )
                 time.sleep(3)
             except TimeoutException:
                 return f"ERROR en {game_id}: No se encontraron elementos de play-by-play"
-            
+
             # Click en botón "Todos" para mostrar todas las jugadas
             print(f"   [INFO] Buscando botón 'Todos'...")
             try:
@@ -99,7 +164,7 @@ class BatchHumanLikeScraper:
                 print(f"   [OK] Botón 'Todos' clicado")
             except Exception as e:
                 print(f"   [AVISO] No se pudo clicar botón 'Todos': {e}")
-            
+
             # Scroll para cargar todo el contenido
             print(f"   [INFO] Cargando contenido completo...")
             scroll_attempts = 0
@@ -107,7 +172,7 @@ class BatchHumanLikeScraper:
             previous_count = 0
             no_change_rounds = 0
             quinteto_found = False
-            
+
             while scroll_attempts < max_scrolls:
                 # Scroll en el contenedor específico
                 driver.execute_script("""
@@ -116,14 +181,14 @@ class BatchHumanLikeScraper:
                         container.scrollTop += 800;
                     }
                 """)
-                
+
                 time.sleep(0.4)
                 scroll_attempts += 1
-                
+
                 # Cada 5 scrolls, verificar progreso
                 if scroll_attempts % 5 == 0:
                     current_count = len(driver.find_elements(By.CSS_SELECTOR, "div[class*='MatchPlayByPlayCardWrapper']"))
-                    
+
                     # Verificar si encontramos "Quinteto Inicial"
                     if not quinteto_found and "Quinteto Inicial" in driver.page_source:
                         quinteto_count = driver.page_source.count("Quinteto Inicial")
@@ -137,10 +202,10 @@ class BatchHumanLikeScraper:
                             """)
                             time.sleep(0.3)
                         break
-                    
+
                     if scroll_attempts % 10 == 0:
                         print(f"   [DEBUG] Scroll #{scroll_attempts}: {current_count} elementos")
-                    
+
                     if current_count == previous_count:
                         no_change_rounds += 1
                         if no_change_rounds >= 4:
@@ -156,7 +221,6 @@ class BatchHumanLikeScraper:
 
             # Extraer nombres de equipos
             local_team_name, visitor_team_name = "LOCAL", "VISITANTE"
-            # TODO: Extraer nombres reales de equipos si es posible
 
             # Extraer jugadas con la nueva estructura
             card_wrappers = soup.select("div[class*='MatchPlayByPlayCardWrapper']")
@@ -168,7 +232,7 @@ class BatchHumanLikeScraper:
             current_time = "10:00"
             current_home_score = "0"
             current_away_score = "0"
-            
+
             for wrapper in card_wrappers:
                 # Extraer periodo y tiempo usando el selector correcto
                 score_info = wrapper.select_one("div[class*='info__']")
@@ -177,12 +241,12 @@ class BatchHumanLikeScraper:
                     if len(p_tags) >= 2:
                         period_text = p_tags[0].text.strip()
                         time_text = p_tags[1].text.strip()
-                        
+
                         if period_text:
                             current_period = period_text
                         if time_text:
                             current_time = time_text
-                
+
                 # Extraer marcadores
                 home_score_el = wrapper.select_one("div[class*='homeScore']")
                 away_score_el = wrapper.select_one("div[class*='awayScore']")
@@ -200,10 +264,10 @@ class BatchHumanLikeScraper:
                         team_name = local_team_name
                     elif any('away' in c.lower() for c in classes):
                         team_name = visitor_team_name
-                    
+
                     player_el = team_card.select_one("p[class*='playerName']")
                     player = player_el.text.strip() if player_el else None
-                    
+
                     desc_container = team_card.select_one("div[class*='MatchPlayByPlayTeamCardDescription']")
                     action = None
                     stats = None
@@ -212,7 +276,7 @@ class BatchHumanLikeScraper:
                         stats_el = desc_container.select_one("p[class*='stats']")
                         action = action_el.text.strip() if action_el else None
                         stats = stats_el.text.strip() if stats_el else None
-                    
+
                     if action:
                         extracted_data.append({
                             'id_partido': game_id,
@@ -225,27 +289,35 @@ class BatchHumanLikeScraper:
                             'accion': action,
                             'estadistica': stats,
                         })
-            
-            
+
+
             # Verificación de calidad
             print(f"   [INFO] Extraídas {len(extracted_data)} jugadas")
             cinco_inicial_count = sum(1 for row in extracted_data if row['accion'] and "quinteto" in row['accion'].lower())
-            
+
             print(f"   [DEBUG] Quinteto Inicial: {cinco_inicial_count}, Total jugadas: {len(extracted_data)}")
 
             # Verificación relajada: aceptar si tiene al menos 5 quintetos O más de 200 jugadas
-            if cinco_inicial_count >= 5 or len(extracted_data) > 200:
-                fieldnames = ['id_partido', 'periodo', 'tiempo', 'marcador_local', 'marcador_visitante', 'equipo', 'jugador', 'accion', 'estadistica']
-                with open(output_filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(extracted_data)
-                print(f"   [OK] CSV generado: {output_filepath}")
-                return f"OK: {game_id} ({len(extracted_data)} jugadas, {cinco_inicial_count} quintetos)"
-            else:
+            if not (cinco_inicial_count >= 5 or len(extracted_data) > 200):
                 error_msg = f"CALIDAD INSUFICIENTE en {game_id}: Solo {len(extracted_data)} jugadas y {cinco_inicial_count} quintetos"
                 print(f"   {error_msg}")
                 return error_msg
+
+            # Verificación de marcador: comparar con resultado real
+            score_ok, score_msg = self._verify_score(game_id, extracted_data)
+            print(f"   [INFO] {score_msg}")
+            if not score_ok:
+                error_msg = f"RECHAZADO {game_id}: {score_msg}"
+                print(f"   [ERROR] {error_msg}")
+                return error_msg
+
+            fieldnames = ['id_partido', 'periodo', 'tiempo', 'marcador_local', 'marcador_visitante', 'equipo', 'jugador', 'accion', 'estadistica']
+            with open(output_filepath, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(extracted_data)
+            print(f"   [OK] CSV generado: {output_filepath}")
+            return f"OK: {game_id} ({len(extracted_data)} jugadas, {cinco_inicial_count} quintetos)"
 
         except Exception as e:
             try:
@@ -257,7 +329,40 @@ class BatchHumanLikeScraper:
             if driver:
                 self.driver_pool.put(driver)
 
-    def run_batch(self, game_ids, max_workers=4):
+    def verify_existing_files(self, game_ids):
+        """Verifica que los ficheros PBP existentes tienen marcadores correctos."""
+        print(f"\n[VERIFY] Verificando {len(game_ids)} partidos...")
+        ok_count, fail_count, missing_count = 0, 0, 0
+        failed_ids = []
+
+        for game_id in game_ids:
+            filepath = os.path.join(self.output_dir, f"play_by_play_{game_id}.csv")
+            if not os.path.exists(filepath):
+                missing_count += 1
+                continue
+
+            # Leer jugadas del CSV
+            extracted_data = []
+            with open(filepath, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    extracted_data.append(row)
+
+            score_ok, score_msg = self._verify_score(game_id, extracted_data)
+            if score_ok:
+                ok_count += 1
+            else:
+                fail_count += 1
+                failed_ids.append(game_id)
+                print(f"   [FAIL] {game_id}: {score_msg}")
+
+        print(f"\n[VERIFY] Resultado: {ok_count} OK, {fail_count} FAIL, {missing_count} sin fichero")
+        if failed_ids:
+            print(f"[VERIFY] IDs con marcador incorrecto: {failed_ids}")
+            print(f"[VERIFY] Para re-scrapear: --force --only {' '.join(str(x) for x in failed_ids)}")
+        return failed_ids
+
+    def run_batch(self, game_ids, max_workers=1, force=False):
         start_time = time.time()
 
         print(f"[INFO] Creando pool de {max_workers} navegadores...")
@@ -265,7 +370,7 @@ class BatchHumanLikeScraper:
             self.driver_pool.put(self.setup_undetected_driver())
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(self._scrape_and_process_game, gid) for gid in game_ids]
+            futures = [executor.submit(self._scrape_and_process_game, gid, force) for gid in game_ids]
             for future in as_completed(futures):
                 try:
                     result = future.result()
@@ -273,7 +378,7 @@ class BatchHumanLikeScraper:
                         print(result)
                 except Exception as e:
                     print(f"Error en un hilo de ejecución: {e}")
-        
+
         print("[INFO] Limpiando y cerrando navegadores...")
         while not self.driver_pool.empty():
             driver = self.driver_pool.get()
@@ -283,37 +388,55 @@ class BatchHumanLikeScraper:
         print(f"\n--- Lote completado en {end_time - start_time:.2f} segundos ---")
 
 
-if __name__ == "__main__":
+def main():
+    parser = argparse.ArgumentParser(
+        description="Scraper de Play-by-Play de la ACB (live.acb.com)"
+    )
+    parser.add_argument(
+        '--force', action='store_true',
+        help='Re-scrapear aunque el fichero CSV ya exista',
+    )
+    parser.add_argument(
+        '--only', nargs='+', type=int, metavar='ID',
+        help='Procesar solo estos game IDs',
+    )
+    parser.add_argument(
+        '--workers', type=int, default=1,
+        help='Número de navegadores concurrentes (default: 1, recomendado)',
+    )
+    parser.add_argument(
+        '--verify', action='store_true',
+        help='Solo verificar marcadores de ficheros existentes (no scrapea)',
+    )
+    args = parser.parse_args()
+
+    # Cargar game IDs
+    match_ids_file = script_dir.parent / "data" / "input" / "match_ids.json"
     try:
-        script_dir = Path(__file__).resolve().parent
-        match_ids_file = script_dir.parent / "data" / "input" / "match_ids.json"
         with open(match_ids_file, 'r') as f:
             all_game_ids = json.load(f)['match_ids']
     except FileNotFoundError:
         print("Error: No se encuentra el fichero 'data/input/match_ids.json'")
-        exit()
-    
-    print(f"[INFO] Total partidos en el fichero: {len(all_game_ids)}")
-    scraper = BatchHumanLikeScraper()
-    print("\n1. Procesar TODOS los partidos\n2. Procesar los primeros 10 partidos\n3. Procesar un rango de índices (ej: 0 a 5)")
-    choice = input("\nElige una opción: ")
-    
-    game_ids_to_process, num_workers = [], 2
-    if choice == '1':
-        game_ids_to_process, num_workers = all_game_ids, 2
-    elif choice == '2':
-        game_ids_to_process, num_workers = all_game_ids[:10], 2
-    elif choice == '3':
-        try:
-            start, end = int(input("Desde el índice: ")), int(input("Hasta el índice: "))
-            game_ids_to_process = all_game_ids[start:end]
-        except (ValueError, IndexError):
-            print("Entrada inválida. Saliendo."); exit()
-    else:
-        print("Opción no válida. Saliendo."); exit()
+        return
 
-    if game_ids_to_process:
-        num_workers = min(num_workers, len(game_ids_to_process))
-        scraper.run_batch(game_ids_to_process, max_workers=num_workers)
+    scraper = BatchHumanLikeScraper()
+
+    # Modo verificación
+    if args.verify:
+        game_ids = args.only if args.only else all_game_ids
+        scraper.verify_existing_files(game_ids)
+        return
+
+    # Modo scraping
+    game_ids = args.only if args.only else all_game_ids
+    print(f"[INFO] Partidos a procesar: {len(game_ids)}")
+
+    if game_ids:
+        workers = min(args.workers, len(game_ids))
+        scraper.run_batch(game_ids, max_workers=workers, force=args.force)
     else:
         print("No hay partidos seleccionados para procesar.")
+
+
+if __name__ == "__main__":
+    main()

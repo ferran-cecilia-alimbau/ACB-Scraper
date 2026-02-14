@@ -56,3 +56,14 @@ analytics/acb_analytics.py
 analytics/requirements.txt
 scripts/audit_play_by_play.py
 data/input/match_ids.json
+scripts/google-chrome-stable_current_amd64.deb
+
+# Dashboard
+acb-dashboard/__pycache__/
+acb-dashboard/.streamlit/
+
+# PBP Analytics
+acb-pbp-analytics/__pycache__/
+
+# WebDriver Manager cache
+scripts/.wdm/
