@@ -215,8 +215,8 @@ def load_single_file(
     except pd.errors.EmptyDataError:
         logger.warning(f"Archivo {filename} está vacío")
         return pd.DataFrame(columns=columns if columns else None), set()
-    except Exception as e:
-        logger.error(f"Error al cargar {filename}: {str(e)}")
+    except (OSError, pd.errors.ParserError):
+        logger.exception(f"Error al cargar {filename}")
         return pd.DataFrame(columns=columns if columns else None), set()
 
 
@@ -280,8 +280,8 @@ def save_to_csv(data: pd.DataFrame, output_file: str) -> bool:
         data.to_csv(output_file, index=False)
         logger.info(f"Datos guardados correctamente en {output_file}")
         return True
-    except Exception as e:
-        logger.error(f"Error al guardar datos en {output_file}: {str(e)}")
+    except OSError:
+        logger.exception(f"Error al guardar datos en {output_file}")
         return False
 
 
@@ -419,6 +419,13 @@ def merge_and_deduplicate(
     return updated_dataframes
 
 
+def _profile_ids_from_df(df: pd.DataFrame) -> Set[int]:
+    """Extrae los player_id existentes como set[int]."""
+    if df is None or df.empty or 'player_id' not in df.columns:
+        return set()
+    return set(int(value) for value in pd.to_numeric(df['player_id'], errors='coerce').dropna())
+
+
 def process_and_save_data(
     config: Dict[str, Any],
     results: List[Dict[str, Any]],
@@ -436,16 +443,7 @@ def process_and_save_data(
         logger.info("No hay resultados para procesar")
         return
 
-    # Convertir IDs de perfiles a un conjunto para búsquedas más eficientes
-    existing_profile_ids_set = set()
-    if not dataframes['output_file_player_profiles'].empty and \
-       'player_id' in dataframes['output_file_player_profiles'].columns:
-        existing_profile_ids_set = set(
-            int(id) for id in pd.to_numeric(
-                dataframes['output_file_player_profiles']['player_id'],
-                errors='coerce'
-            ).dropna()
-        )
+    existing_profile_ids_set = _profile_ids_from_df(dataframes.get('output_file_player_profiles'))
 
     # Extraer nuevos datos
     new_data = extract_new_data(results, existing_profile_ids_set)
@@ -481,15 +479,7 @@ async def main():
         dataframes, existing_ids = load_existing_data(config)
 
         # Preparar conjunto de IDs de perfiles existentes
-        existing_profile_ids = set()
-        if not dataframes['output_file_player_profiles'].empty and \
-           'player_id' in dataframes['output_file_player_profiles'].columns:
-            existing_profile_ids = set(
-                int(id) for id in pd.to_numeric(
-                    dataframes['output_file_player_profiles']['player_id'],
-                    errors='coerce'
-                ).dropna()
-            )
+        existing_profile_ids = _profile_ids_from_df(dataframes.get('output_file_player_profiles'))
 
         # Calcular todos los IDs existentes
         all_existing_ids = set().union(*existing_ids.values())
@@ -503,26 +493,40 @@ async def main():
             logger.info("No hay nuevos partidos para procesar. Terminando.")
             return
 
-        def save_single_result(result: Dict[str, Any]) -> None:
-            process_and_save_data(config, [result], dataframes)
+        # Buffer de resultados para flushear cada N partidos (evita reescribir
+        # los CSV completos en cada uno). Sigue siendo resistente a interrupciones
+        # pero a coste O(N) en lugar de O(N²) en disco.
+        flush_every = max(1, int(config.get('flush_every', 5)))
+        pending: List[Dict[str, Any]] = []
 
-        # Procesar partidos. Cada partido exitoso se guarda inmediatamente para
-        # que una interrupcion no pierda lo ya scrapeado.
-        results = await process_games(
-            new_match_ids,
-            config['base_url'],
-            config,
-            all_existing_ids,
-            existing_profile_ids,
-            on_result=save_single_result
-        )
+        def save_single_result(result: Dict[str, Any]) -> None:
+            pending.append(result)
+            if len(pending) >= flush_every:
+                process_and_save_data(config, pending, dataframes)
+                pending.clear()
+
+        try:
+            results = await process_games(
+                new_match_ids,
+                config['base_url'],
+                config,
+                all_existing_ids,
+                existing_profile_ids,
+                on_result=save_single_result
+            )
+        finally:
+            # Flush final por si quedan resultados sin guardar (también ejecuta
+            # tras una excepción para preservar lo procesado hasta ese momento).
+            if pending:
+                process_and_save_data(config, pending, dataframes)
+                pending.clear()
 
         # Si no hay resultados, terminar
         if not results:
             logger.info("No se obtuvieron datos nuevos para procesar. Terminando.")
             return
 
-        logger.info(f"{len(results)} partidos procesados y guardados incrementalmente")
+        logger.info(f"{len(results)} partidos procesados y guardados (flush cada {flush_every})")
 
     except Exception as e:
         logger.error(f"Error en el proceso principal: {str(e)}")

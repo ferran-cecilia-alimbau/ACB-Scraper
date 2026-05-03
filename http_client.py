@@ -47,8 +47,17 @@ class RateLimiter:
             self._last_request_time = time.time()
 
 
-# Instancia global del rate limiter (puede ser reemplazada si es necesario)
-_default_rate_limiter = RateLimiter()
+# Atributo en el que se guarda el RateLimiter dentro de la sesión.
+_SESSION_RATE_LIMITER_ATTR = '_acb_rate_limiter'
+
+
+def _session_rate_limiter(session: ClientSession, config: Dict[str, Any]) -> RateLimiter:
+    """Recupera el RateLimiter asociado a la sesión o crea uno ad hoc."""
+    limiter = getattr(session, _SESSION_RATE_LIMITER_ATTR, None)
+    if limiter is None:
+        limiter = RateLimiter(config.get('rate_limit', const.DEFAULT_RATE_LIMIT))
+        setattr(session, _SESSION_RATE_LIMITER_ATTR, limiter)
+    return limiter
 
 
 @retry(
@@ -82,10 +91,8 @@ async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str
     if not url:
         raise ValueError("La URL no puede estar vacía")
 
-    # Control de velocidad de peticiones usando el rate limiter
-    rate_limit = config.get('rate_limit', const.DEFAULT_RATE_LIMIT)
-    _default_rate_limiter._rate_limit = rate_limit
-    await _default_rate_limiter.wait_if_needed()
+    # El rate limiter vive en la sesión: una instancia por sesión, sin estado global.
+    await _session_rate_limiter(session, config).wait_if_needed()
 
     # Obtener headers y parámetros
     headers = {'User-Agent': config.get('user_agent', const.DEFAULT_USER_AGENT)}
@@ -112,22 +119,23 @@ async def fetch(session: ClientSession, url: str, config: Dict[str, Any]) -> str
                 )
                 
             return content
-    except ClientError as e:
-        logger.error(f"Error en petición HTTP a {url}: {str(e)}")
+    except ClientError:
+        logger.exception(f"Error en petición HTTP a {url}")
         raise
     except asyncio.TimeoutError:
         logger.error(f"Timeout en petición HTTP a {url}")
         raise
-    except Exception as e:
-        logger.error(f"Error inesperado en petición HTTP a {url}: {str(e)}")
-        raise
 
-async def create_client_session() -> ClientSession:
+
+async def create_client_session(rate_limit: float = const.DEFAULT_RATE_LIMIT) -> ClientSession:
     """
-    Crea una sesión HTTP configurada correctamente.
-    
+    Crea una sesión HTTP configurada correctamente con un RateLimiter dedicado.
+
+    Args:
+        rate_limit: Tiempo mínimo en segundos entre peticiones para esta sesión.
+
     Returns:
-        Sesión aiohttp configurada
+        Sesión aiohttp con un RateLimiter adjunto en `_acb_rate_limiter`.
     """
     # Configurar TCP connector con límites y conexiones persistentes
     connector = aiohttp.TCPConnector(
@@ -137,6 +145,7 @@ async def create_client_session() -> ClientSession:
         force_close=False,
         ssl=True  # SSL habilitado para verificar certificados HTTPS
     )
-    
-    # Crear y devolver la sesión
-    return ClientSession(connector=connector)
+
+    session = ClientSession(connector=connector)
+    setattr(session, _SESSION_RATE_LIMITER_ATTR, RateLimiter(rate_limit))
+    return session

@@ -227,6 +227,40 @@ def _team_totals(game_id: int, team_name: str, stats: Dict[str, Any], players: L
     }
 
 
+def _extract_jornada_from_header(header: Dict[str, Any]) -> Optional[int]:
+    """Intenta sacar la jornada del payload React.
+
+    Los partidos de ACB Live exponen la jornada en distintos campos según la
+    versión del payload. Probamos los más comunes con fallback null.
+    """
+    candidates: List[Any] = [
+        header.get('matchday'),
+        header.get('round'),
+        header.get('roundNumber'),
+        header.get('week'),
+        header.get('journey'),
+    ]
+    phase = header.get('phase') or {}
+    if isinstance(phase, dict):
+        candidates.extend([
+            phase.get('matchday'),
+            phase.get('round'),
+            phase.get('roundNumber'),
+            phase.get('number'),
+        ])
+
+    for value in candidates:
+        if value is None:
+            continue
+        try:
+            jornada = int(value)
+            if jornada > 0:
+                return jornada
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def _game_info(game_id: int, header: Dict[str, Any], stats: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, str]:
     teams = header.get('teams') or {}
     home = teams.get('home') or {}
@@ -234,7 +268,12 @@ def _game_info(game_id: int, header: Dict[str, Any], stats: Dict[str, Any], conf
     fecha, hora = _format_start(header.get('start') or '')
     quarters = header.get('quarterScores') or []
     referees = stats.get('referees') or []
-    jornada = (config.get('_match_id_to_jornada') or {}).get(game_id, "")
+
+    # Preferimos la jornada que viene en el payload; el mapping por índice del
+    # input es un fallback frágil (asume calendario completo y sin aplazamientos).
+    jornada: Any = _extract_jornada_from_header(header)
+    if jornada is None:
+        jornada = (config.get('_match_id_to_jornada') or {}).get(game_id, "")
 
     info = {
         "id_partido": game_id,
@@ -269,12 +308,17 @@ def _profile_from_player_data(player_id: int, data: Dict[str, Any]) -> Optional[
     current_team = root.get('currentTeam') or {}
     full_name = _full_player_name(player)
 
+    if root.get('playerNumber') is not None:
+        dorsal = _format_int(root.get('playerNumber'))
+    else:
+        dorsal = player.get('shirtNumber') or ""
+
     return {
         "player_id": player_id,
         "nombre": player.get('firstInitialAndLastName') or player.get('nickname') or full_name,
         "nombre_completo": full_name,
         "equipo": current_team.get('fullName') or current_team.get('shortName') or "",
-        "dorsal": _format_int(root.get('playerNumber')) if root.get('playerNumber') is not None else player.get('shirtNumber') or "",
+        "dorsal": dorsal,
         "posicion": normalize_position(player.get('gameRole') or ""),
         "altura": clean_height(root.get('height') or ""),
         "ciudad_nacimiento": birth_place,
@@ -360,7 +404,17 @@ async def build_modern_game_data(
     if player_ids_to_fetch:
         profile_start = time.perf_counter()
         unique_ids = list(dict.fromkeys(player_ids_to_fetch))
-        tasks = [scrape_modern_player_profile(session, player_id, config) for player_id in unique_ids]
+        # Limitar la concurrencia de perfiles dentro de un mismo partido. El
+        # semáforo externo (en scraper.py) acota partidos en paralelo, no las
+        # sub-peticiones de perfil que se disparan dentro de cada uno.
+        profile_concurrency = max(1, int(config.get('profile_concurrency', 3)))
+        inner_sem = asyncio.Semaphore(profile_concurrency)
+
+        async def _bounded(pid: int):
+            async with inner_sem:
+                return await scrape_modern_player_profile(session, pid, config)
+
+        tasks = [_bounded(player_id) for player_id in unique_ids]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         profile_seconds = time.perf_counter() - profile_start
         for player_id, profile in zip(unique_ids, results):

@@ -13,7 +13,10 @@ CONFIG_FILE = "config.json"
 MATCH_IDS_FILE = "data/input/match_ids.json"
 
 # Configuraciones de scraping
-DEFAULT_USER_AGENT = "BasketballStatsScraper/1.0"
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
 MAX_RETRIES = 3
 RETRY_MIN_WAIT = 2
 RETRY_MAX_WAIT = 10

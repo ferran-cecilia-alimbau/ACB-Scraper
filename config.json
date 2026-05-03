@@ -1,16 +1,18 @@
 {
     "base_url": "https://www.acb.com/partido/estadisticas/id/",
-"output_file": "data/output/estadisticas_todos_partidos.csv",
+    "output_file": "data/output/estadisticas_todos_partidos.csv",
     "output_file_game": "data/output/estadisticas_partido.csv",
     "output_file_team_totals": "data/output/estadisticas_equipos_por_partido.csv",
     "output_file_player_profiles": "data/output/perfiles_jugadores.csv",
     "max_retries": 3,
     "retry_delay": 5,
-    "user_agent": "BasketballStatsScraper/1.0",
+    "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "rate_limit": 1,
     "max_concurrent": 5,
     "batch_size": 20,
     "batch_pause": 2,
+    "flush_every": 5,
+    "profile_concurrency": 3,
     "timeout": 30,
     "id_columns": {
         "output_file": ["id_partido", "player_id", "equipo", "nombre"],
@@ -18,7 +20,7 @@
         "output_file_team_totals": ["id_partido", "equipo"],
         "output_file_player_profiles": ["player_id"]
     },
-        "columns_players": [
+    "columns_players": [
         "id_partido", "player_id", "equipo", "es_titular", "dorsal", "nombre", "minutos",
         "puntos", "t2_intentados", "t2_anotados", "t2_porcentaje",
         "t3_intentados", "t3_anotados", "t3_porcentaje",
@@ -36,33 +38,16 @@
         "parciales_local", "parciales_visitante"
     ],
     "columns_team_totals": [
-    "id_partido", 
-    "equipo", 
-    "minutos",
-    "puntos",
-    "t2_encestados", 
-    "t2_intentados", 
-    "t2_porcentaje",
-    "t3_encestados", 
-    "t3_intentados", 
-    "t3_porcentaje",
-    "tl_encestados", 
-    "tl_intentados", 
-    "tl_porcentaje",
-    "rebotes_totales",
-    "rebotes_defensivos",
-    "rebotes_ofensivos",
-    "asistencias",
-    "robos",
-    "perdidas",
-    "tapones_favor",
-    "tapones_contra",
-    "mates",
-    "faltas_cometidas",
-    "faltas_recibidas",
-    "plus_minus",
-    "valoracion"
-],
+        "id_partido", "equipo", "minutos", "puntos",
+        "t2_encestados", "t2_intentados", "t2_porcentaje",
+        "t3_encestados", "t3_intentados", "t3_porcentaje",
+        "tl_encestados", "tl_intentados", "tl_porcentaje",
+        "rebotes_totales", "rebotes_defensivos", "rebotes_ofensivos",
+        "asistencias", "robos", "perdidas",
+        "tapones_favor", "tapones_contra", "mates",
+        "faltas_cometidas", "faltas_recibidas",
+        "plus_minus", "valoracion"
+    ],
     "columns_player_profiles": [
         "player_id", "nombre", "nombre_completo", "equipo", "dorsal", "posicion", "altura",
         "ciudad_nacimiento", "pais_nacimiento", "fecha_nacimiento", "edad", "nacionalidad", "licencia"

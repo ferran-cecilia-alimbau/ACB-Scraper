@@ -137,14 +137,16 @@ async def get_game_data(
                 'player_profiles': team1_players + team2_players,
                 '_metrics': legacy_metrics,
             }
-        except ClientError as e:
-            logger.error(f"Error de cliente HTTP en partido {game_id}: {str(e)}")
+        except ClientError:
+            logger.exception(f"Error de cliente HTTP en partido {game_id}")
             return None
         except asyncio.TimeoutError:
             logger.error(f"Timeout al obtener datos del partido {game_id}")
             return None
-        except Exception as e:
-            logger.error(f"Error inesperado al obtener datos del partido {game_id}: {str(e)}")
+        except Exception:
+            # Mantenemos el catch genérico para que un partido roto no tumbe el
+            # batch entero, pero registramos el traceback completo para diagnóstico.
+            logger.exception(f"Error inesperado al obtener datos del partido {game_id}")
             return None
 
 
@@ -185,8 +187,8 @@ async def process_batch(
     for task in asyncio.as_completed(tasks):
         try:
             game_id, result = await task
-        except Exception as e:
-            logger.error(f"Error procesando partido en lote: {e}")
+        except Exception:
+            logger.exception("Error procesando partido en lote")
             pbar.update(1)
             continue
 
@@ -272,8 +274,9 @@ async def process_games(
     # Semáforo para controlar la concurrencia
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
-    # Crear sesión HTTP compartida
-    async with await create_client_session() as session:
+    # Crear sesión HTTP compartida con su propio RateLimiter
+    rate_limit = config.get('rate_limit', const.DEFAULT_RATE_LIMIT)
+    async with await create_client_session(rate_limit=rate_limit) as session:
         all_successful_results = []
 
         # Barra de progreso
