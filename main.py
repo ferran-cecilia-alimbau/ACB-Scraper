@@ -493,40 +493,29 @@ async def main():
             logger.info("No hay nuevos partidos para procesar. Terminando.")
             return
 
-        # Buffer de resultados para flushear cada N partidos (evita reescribir
-        # los CSV completos en cada uno). Sigue siendo resistente a interrupciones
-        # pero a coste O(N) en lugar de O(N²) en disco.
-        flush_every = max(1, int(config.get('flush_every', 5)))
-        pending: List[Dict[str, Any]] = []
-
+        # Cada partido se guarda al instante para que una interrupción no
+        # pierda lo ya procesado. Reescribir los CSV completos en cada partido
+        # es O(N²) en disco, pero a la escala actual (~150 partidos / ~400KB)
+        # es despreciable. La optimización real (append/upsert incremental)
+        # queda pendiente y no debe hacerse acumulando en memoria.
         def save_single_result(result: Dict[str, Any]) -> None:
-            pending.append(result)
-            if len(pending) >= flush_every:
-                process_and_save_data(config, pending, dataframes)
-                pending.clear()
+            process_and_save_data(config, [result], dataframes)
 
-        try:
-            results = await process_games(
-                new_match_ids,
-                config['base_url'],
-                config,
-                all_existing_ids,
-                existing_profile_ids,
-                on_result=save_single_result
-            )
-        finally:
-            # Flush final por si quedan resultados sin guardar (también ejecuta
-            # tras una excepción para preservar lo procesado hasta ese momento).
-            if pending:
-                process_and_save_data(config, pending, dataframes)
-                pending.clear()
+        results = await process_games(
+            new_match_ids,
+            config['base_url'],
+            config,
+            all_existing_ids,
+            existing_profile_ids,
+            on_result=save_single_result
+        )
 
         # Si no hay resultados, terminar
         if not results:
             logger.info("No se obtuvieron datos nuevos para procesar. Terminando.")
             return
 
-        logger.info(f"{len(results)} partidos procesados y guardados (flush cada {flush_every})")
+        logger.info(f"{len(results)} partidos procesados y guardados incrementalmente")
 
     except Exception as e:
         logger.error(f"Error en el proceso principal: {str(e)}")

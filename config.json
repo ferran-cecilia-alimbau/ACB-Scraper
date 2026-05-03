@@ -11,7 +11,6 @@
     "max_concurrent": 5,
     "batch_size": 20,
     "batch_pause": 2,
-    "flush_every": 5,
     "profile_concurrency": 3,
     "timeout": 30,
     "id_columns": {
