@@ -62,15 +62,23 @@ ACB-Scraper/
 ### Uso
 
 ```bash
+# 0. Instalar dependencias con Python 3.12
+py -3.12 -m pip install -r requirements.txt
+
 # 1. Obtener IDs de partidos
-python scripts/get_match_ids.py
+py -3.12 scripts/get_match_ids.py
 
-# 2. Scrapear estadísticas (4 CSVs)
-python main.py
+# 2. Validar scraper con salidas temporales
+py -3.12 scripts/validate_scraper.py
 
-# 3. Scrapear play-by-play
-python scripts/batch_play_by_play_v2.py
+# 3. Scrapear estadísticas (4 CSVs)
+py -3.12 main.py
+
+# 4. Scrapear play-by-play
+py -3.12 scripts/batch_play_by_play_v2.py
 ```
+
+El scraper guarda los CSVs tras cada partido procesado correctamente. En logs se registran métricas por partido: descarga, parseo, perfiles, guardado y número de perfiles completos descargados. `scripts/validate_scraper.py` ejecuta 1-2 partidos en una carpeta temporal, comprueba filas, duplicados, campos críticos, marcador y un segundo pase con perfiles ya existentes.
 
 ### Configuración (`config.json`)
 
@@ -176,6 +184,8 @@ Motor de análisis play-by-play. Procesa los ficheros PBP crudos y genera métri
 | `estadisticas_partido.csv` | Info general de cada partido | 15 |
 | `estadisticas_equipos_por_partido.csv` | Totales de equipo por partido | 25 |
 | `perfiles_jugadores.csv` | Datos biográficos de jugadores | 13 |
+
+Los totales de equipo son los oficiales de ACB. Algunas estadísticas pueden incluir valores de equipo no asignados a jugadores individuales, por lo que no siempre coinciden exactamente con la suma de filas de jugadores.
 
 ### Play-by-play (`data/play_by_play/`)
 

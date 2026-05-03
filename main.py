@@ -52,13 +52,13 @@ COLUMN_KEYS = {
 def load_config(filename: str = const.CONFIG_FILE) -> Dict[str, Any]:
     """
     Carga la configuración desde un archivo JSON.
-    
+
     Args:
         filename: Ruta del archivo de configuración
-        
+
     Returns:
         Diccionario con la configuración
-        
+
     Raises:
         FileNotFoundError: Si no se encuentra el archivo
         json.JSONDecodeError: Si el archivo no es un JSON válido
@@ -67,11 +67,11 @@ def load_config(filename: str = const.CONFIG_FILE) -> Dict[str, Any]:
         error_msg = "El nombre del archivo de configuración debe ser una cadena válida"
         logger.error(error_msg)
         raise ValueError(error_msg)
-        
+
     try:
         with open(filename, 'r', encoding='utf-8') as file:
             config = json.load(file)
-        
+
         logger.info(f"Configuración cargada exitosamente desde {filename}")
 
         # Validar configuración mínima requerida
@@ -99,7 +99,7 @@ def load_config(filename: str = const.CONFIG_FILE) -> Dict[str, Any]:
                 error_msg = f"Faltan claves en 'id_columns': {missing_id_cols}"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
-            
+
         return config
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.error(f"Error al cargar la configuración desde {filename}: {str(e)}")
@@ -109,13 +109,13 @@ def load_config(filename: str = const.CONFIG_FILE) -> Dict[str, Any]:
 def load_match_ids(filename: str = const.MATCH_IDS_FILE) -> List[int]:
     """
     Carga los IDs de partidos desde un archivo JSON.
-    
+
     Args:
         filename: Ruta del archivo de IDs
-        
+
     Returns:
         Lista de IDs de partidos
-        
+
     Raises:
         FileNotFoundError: Si no se encuentra el archivo
         json.JSONDecodeError: Si el archivo no es un JSON válido
@@ -124,21 +124,21 @@ def load_match_ids(filename: str = const.MATCH_IDS_FILE) -> List[int]:
         error_msg = "El nombre del archivo de IDs debe ser una cadena válida"
         logger.error(error_msg)
         raise ValueError(error_msg)
-        
+
     try:
         with open(filename, 'r', encoding='utf-8') as file:
             data = json.load(file)
-            
+
         match_ids = data.get('match_ids', [])
-        
+
         if not match_ids:
             logger.warning(f"No se encontraron IDs de partidos en {filename}")
-            
+
         # Validar que todos los IDs son enteros
         if not all(isinstance(id, int) for id in match_ids):
             logger.warning("Algunos IDs no son enteros. Convertiendo a enteros.")
             match_ids = [int(id) for id in match_ids if str(id).isdigit()]
-            
+
         logger.info(f"Cargados {len(match_ids)} IDs de partidos desde {filename}")
         return match_ids
     except (FileNotFoundError, json.JSONDecodeError) as e:
@@ -149,60 +149,60 @@ def load_match_ids(filename: str = const.MATCH_IDS_FILE) -> List[int]:
 def ensure_columns(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
     """
     Asegura que el DataFrame contiene todas las columnas especificadas.
-    
+
     Args:
         df: DataFrame a modificar
         columns: Lista de columnas que debe contener
-        
+
     Returns:
         DataFrame con las columnas especificadas
     """
     if df is None or columns is None:
         logger.error("DataFrame o lista de columnas es None")
         return pd.DataFrame(columns=columns if columns else None)
-        
+
     # Añadir columnas que falten
     for col in columns:
         if col not in df.columns:
             df[col] = ''
-            
+
     # Reordenar y seleccionar solo las columnas especificadas
     return df[columns]
 
 
 def load_single_file(
-    filename: str, 
-    id_column: str, 
+    filename: str,
+    id_column: str,
     columns: Optional[List[str]]
 ) -> Tuple[pd.DataFrame, Set[int]]:
     """
     Carga un archivo CSV y extrae los IDs únicos.
-    
+
     Args:
         filename: Ruta del archivo CSV
         id_column: Nombre de la columna de ID
         columns: Lista de columnas que debe contener
-        
+
     Returns:
         Tupla con DataFrame y conjunto de IDs
     """
     if not filename or not id_column:
         logger.error("Nombre de archivo o columna de ID vacíos")
         return pd.DataFrame(columns=columns if columns else None), set()
-        
+
     try:
         # Verificar si el archivo existe
         if not os.path.exists(filename):
             logger.info(f"Archivo {filename} no encontrado. Creando uno nuevo.")
             return pd.DataFrame(columns=columns if columns else None), set()
-            
+
         # Cargar el archivo
         df = pd.read_csv(filename)
-        
+
         # Si hay columnas especificadas, asegurar que estén en el DataFrame
         if columns:
             df = ensure_columns(df, columns)
-            
+
         # Extraer IDs únicos
         if id_column in df.columns:
             ids = set(pd.to_numeric(df[id_column], errors='coerce').dropna().astype(int))
@@ -210,7 +210,7 @@ def load_single_file(
         else:
             logger.warning(f"Columna {id_column} no encontrada en {filename}")
             ids = set()
-            
+
         return df, ids
     except pd.errors.EmptyDataError:
         logger.warning(f"Archivo {filename} está vacío")
@@ -223,58 +223,58 @@ def load_single_file(
 def load_existing_data(config: Dict[str, Any]) -> Tuple[DataFrameDict, IdSetDict]:
     """
     Carga los datos existentes de todos los archivos configurados.
-    
+
     Args:
         config: Configuración del scraper
-        
+
     Returns:
         Tupla con diccionarios de DataFrames e IDs
     """
     dataframes: DataFrameDict = {}
     existing_ids: IdSetDict = {}
-    
+
     # Procesar cada configuración de archivo
     for file_key, file_config in FILE_CONFIGS.items():
         filename = config.get(file_key)
-        
+
         if not filename:
             logger.warning(f"Clave '{file_key}' no encontrada en la configuración")
             continue
-            
+
         # Obtener la lista de columnas para este tipo de archivo
         columns = config.get(file_config.columns_key)
-        
+
         # Cargar el archivo y extraer IDs
         df, ids = load_single_file(filename, file_config.id_column, columns)
-        
+
         # Almacenar resultados
         dataframes[file_key] = df
         existing_ids[file_key] = ids
-    
+
     return dataframes, existing_ids
 
 
 def save_to_csv(data: pd.DataFrame, output_file: str) -> bool:
     """
     Guarda un DataFrame en un archivo CSV.
-    
+
     Args:
         data: DataFrame a guardar
         output_file: Ruta del archivo de salida
-        
+
     Returns:
         True si se guardó correctamente, False en caso contrario
     """
     if data is None or data.empty:
         logger.warning(f"DataFrame vacío. No se guardará el archivo {output_file}")
         return False
-        
+
     try:
         # Crear directorio si no existe
         output_dir = os.path.dirname(output_file)
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir, exist_ok=True)
-            
+
         # Guardar archivo
         logger.info(f"Guardando datos en {output_file}. Shape del DataFrame: {data.shape}")
         data.to_csv(output_file, index=False)
@@ -291,11 +291,11 @@ def extract_new_data(
 ) -> Dict[str, List]:
     """
     Extrae los nuevos datos de los resultados del scraping.
-    
+
     Args:
         results: Resultados del scraping
         existing_profile_ids_set: Conjunto de IDs de perfiles existentes
-        
+
     Returns:
         Diccionario con los nuevos datos organizados por tipo
     """
@@ -305,61 +305,106 @@ def extract_new_data(
         'output_file_team_totals': [],
         'output_file_player_profiles': []
     }
-    
+
     # Procesar cada resultado
     for result in results:
         # Añadir estadísticas de jugadores
         new_data['output_file'].extend(result.get('player_stats', []))
-        
+
         # Añadir información del partido
         if 'game_info' in result:
             new_data['output_file_game'].append(result['game_info'])
-            
+
         # Añadir totales de equipos
         new_data['output_file_team_totals'].extend(result.get('team_totals', []))
-        
-        # Añadir perfiles de jugadores (solo los que no existen)
-        new_data['output_file_player_profiles'].extend([
-            profile for profile in result.get('player_profiles', [])
-            if profile['player_id'] not in existing_profile_ids_set
-        ])
-    
+
+        # Añadir perfiles de jugadores. El merge posterior actualiza por player_id.
+        new_data['output_file_player_profiles'].extend(result.get('player_profiles', []))
+
     return new_data
 
 
+def _profile_id_key(value: Any) -> str:
+    try:
+        return str(int(float(value)))
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def merge_player_profiles(
+    existing_df: pd.DataFrame,
+    new_df: pd.DataFrame,
+    columns: List[str]
+) -> pd.DataFrame:
+    """Actualiza perfiles por player_id sin borrar campos existentes con valores vacios."""
+    existing = ensure_columns(existing_df.copy(), columns)
+    updates = ensure_columns(new_df.copy(), columns)
+
+    records = {}
+    for _, row in existing.iterrows():
+        player_id = row.get('player_id')
+        if pd.isna(player_id) or str(player_id) == '':
+            continue
+        records[_profile_id_key(player_id)] = row.to_dict()
+
+    for _, row in updates.iterrows():
+        player_id = row.get('player_id')
+        if pd.isna(player_id) or str(player_id) == '':
+            continue
+
+        key = _profile_id_key(player_id)
+        current = records.get(key, {col: '' for col in columns})
+        for col in columns:
+            value = row.get(col, '')
+            if col == 'player_id' or (pd.notna(value) and str(value) != ''):
+                current[col] = value
+        records[key] = current
+
+    if not records:
+        return pd.DataFrame(columns=columns)
+
+    merged = pd.DataFrame(records.values())
+    return ensure_columns(merged, columns).drop_duplicates(subset=['player_id'], keep='last')
+
 def merge_and_deduplicate(
-    dataframes: Dict[str, pd.DataFrame], 
-    new_data: Dict[str, List], 
+    dataframes: Dict[str, pd.DataFrame],
+    new_data: Dict[str, List],
     config: Dict[str, Any]
 ) -> Dict[str, pd.DataFrame]:
     """
     Combina datos nuevos con existentes y elimina duplicados.
-    
+
     Args:
         dataframes: DataFrames existentes
         new_data: Nuevos datos a añadir
         config: Configuración del scraper
-        
+
     Returns:
         Diccionario con DataFrames actualizados
     """
     updated_dataframes = {}
-    
+
     for key in new_data:
         if not new_data[key]:
             updated_dataframes[key] = dataframes[key]
             continue
-            
+
         new_df = pd.DataFrame(new_data[key])
-        
+
         # Asegurar que tiene las columnas requeridas
         columns_key = COLUMN_KEYS.get(key)
         if columns_key and columns_key in config:
             new_df = ensure_columns(new_df, config[columns_key])
-        
+
+        if key == 'output_file_player_profiles':
+            updated_dataframes[key] = merge_player_profiles(
+                dataframes[key], new_df, config[columns_key]
+            )
+            continue
+
         # Combinar con los datos existentes
         combined_df = pd.concat([dataframes[key], new_df], ignore_index=True)
-        
+
         # Eliminar duplicados eficientemente
         # Solo hacemos drop_duplicates una vez sobre todo el DataFrame
         # pandas es lo suficientemente eficiente para manejar esto directamente
@@ -368,20 +413,20 @@ def merge_and_deduplicate(
             subset=config['id_columns'][key],
             keep='last'
         )
-        
+
         updated_dataframes[key] = combined_df
-    
+
     return updated_dataframes
 
 
 def process_and_save_data(
-    config: Dict[str, Any], 
-    results: List[Dict[str, Any]], 
+    config: Dict[str, Any],
+    results: List[Dict[str, Any]],
     dataframes: Dict[str, pd.DataFrame]
 ) -> None:
     """
     Procesa los resultados del scraping y los guarda en archivos CSV.
-    
+
     Args:
         config: Configuración del scraper
         results: Resultados del scraping
@@ -390,7 +435,7 @@ def process_and_save_data(
     if not results:
         logger.info("No hay resultados para procesar")
         return
-        
+
     # Convertir IDs de perfiles a un conjunto para búsquedas más eficientes
     existing_profile_ids_set = set()
     if not dataframes['output_file_player_profiles'].empty and \
@@ -401,18 +446,18 @@ def process_and_save_data(
                 errors='coerce'
             ).dropna()
         )
-    
+
     # Extraer nuevos datos
     new_data = extract_new_data(results, existing_profile_ids_set)
-    
+
     # Combinar y deduplicar
     updated_dataframes = merge_and_deduplicate(dataframes, new_data, config)
-    
+
     # Guardar cada tipo de datos
     for key, df in updated_dataframes.items():
         dataframes[key] = df
         save_to_csv(df, config[key])
-    
+
     logger.info("Procesamiento y guardado de datos completado")
 
 
@@ -423,13 +468,18 @@ async def main():
     try:
         # Cargar configuración
         config = load_config()
-        
+
         # Cargar IDs de partidos
         match_ids = load_match_ids()
-        
+
+        # ACB Live ya no expone la jornada en la ficha del partido. El input
+        # oficial del scraper esta ordenado por calendario; con 18 equipos son
+        # 9 partidos por jornada.
+        config['_match_id_to_jornada'] = {match_id: (idx // 9) + 1 for idx, match_id in enumerate(match_ids)}
+
         # Cargar datos existentes
         dataframes, existing_ids = load_existing_data(config)
-        
+
         # Preparar conjunto de IDs de perfiles existentes
         existing_profile_ids = set()
         if not dataframes['output_file_player_profiles'].empty and \
@@ -440,36 +490,40 @@ async def main():
                     errors='coerce'
                 ).dropna()
             )
-        
+
         # Calcular todos los IDs existentes
         all_existing_ids = set().union(*existing_ids.values())
-        
+
         # Filtrar IDs nuevos
         new_match_ids = [id for id in match_ids if id not in all_existing_ids]
         logger.info(f"Iniciando proceso de scraping para {len(new_match_ids)} nuevos partidos")
-        
+
         # Si no hay partidos nuevos, terminar
         if not new_match_ids:
             logger.info("No hay nuevos partidos para procesar. Terminando.")
             return
-            
-        # Procesar partidos
+
+        def save_single_result(result: Dict[str, Any]) -> None:
+            process_and_save_data(config, [result], dataframes)
+
+        # Procesar partidos. Cada partido exitoso se guarda inmediatamente para
+        # que una interrupcion no pierda lo ya scrapeado.
         results = await process_games(
-            new_match_ids, 
-            config['base_url'], 
-            config, 
-            all_existing_ids, 
-            existing_profile_ids
+            new_match_ids,
+            config['base_url'],
+            config,
+            all_existing_ids,
+            existing_profile_ids,
+            on_result=save_single_result
         )
-        
+
         # Si no hay resultados, terminar
         if not results:
             logger.info("No se obtuvieron datos nuevos para procesar. Terminando.")
             return
-            
-        # Procesar y guardar resultados
-        process_and_save_data(config, results, dataframes)
-        
+
+        logger.info(f"{len(results)} partidos procesados y guardados incrementalmente")
+
     except Exception as e:
         logger.error(f"Error en el proceso principal: {str(e)}")
         import traceback
