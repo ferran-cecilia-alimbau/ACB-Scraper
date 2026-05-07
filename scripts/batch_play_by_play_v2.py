@@ -22,6 +22,22 @@ from bs4 import BeautifulSoup
 script_dir = Path(__file__).resolve().parent
 
 
+def _find_chrome_binary():
+    """Busca Chrome/Chromium local, incluido Chrome for Testing descargado en el workspace."""
+    env_binary = os.environ.get("CHROME_BINARY") or os.environ.get("GOOGLE_CHROME_BIN")
+    candidates = [
+        env_binary,
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        str(script_dir.parent / ".chrome-for-testing" / "chrome-mac-arm64" / "Google Chrome for Testing.app" / "Contents" / "MacOS" / "Google Chrome for Testing"),
+        str(script_dir.parent / ".chrome-for-testing" / "chrome-mac-x64" / "Google Chrome for Testing.app" / "Contents" / "MacOS" / "Google Chrome for Testing"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            return candidate
+    return None
+
+
 class BatchHumanLikeScraper:
     """Procesador en lote que extrae Play-by-Play de forma concurrente."""
 
@@ -73,10 +89,24 @@ class BatchHumanLikeScraper:
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
             options.add_experimental_option('useAutomationExtension', False)
 
-            # webdriver-manager: usa caché local, sin descargar si ya existe
-            os.environ['WDM_LOCAL'] = '1'
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=options)
+            chrome_binary = _find_chrome_binary()
+            if chrome_binary:
+                options.binary_location = chrome_binary
+                print(f"   [INFO] Usando Chrome: {chrome_binary}")
+
+            if chrome_binary:
+                # webdriver-manager: usa caché local, sin descargar si ya existe
+                os.environ['WDM_LOCAL'] = '1'
+                try:
+                    service = Service(ChromeDriverManager().install())
+                    driver = webdriver.Chrome(service=service, options=options)
+                except Exception as wdm_error:
+                    print(f"   [AVISO] webdriver-manager falló: {wdm_error}")
+                    print("   [INFO] Reintentando con Selenium Manager...")
+                    driver = webdriver.Chrome(options=options)
+            else:
+                print("   [INFO] Chrome local no detectado; usando Selenium Manager...")
+                driver = webdriver.Chrome(options=options)
 
             print("   [OK] Chrome iniciado correctamente")
             return driver
@@ -122,7 +152,10 @@ class BatchHumanLikeScraper:
         if os.path.exists(output_filepath) and not force:
             return f"SALTADO: {game_id}"
 
-        driver = self.driver_pool.get()
+        try:
+            driver = self.driver_pool.get(timeout=1)
+        except queue.Empty:
+            driver = self.setup_undetected_driver()
         try:
             print(f"[INFO]  Procesando partido {game_id}...")
 
@@ -156,10 +189,12 @@ class BatchHumanLikeScraper:
             print(f"   [INFO] Buscando botón 'Todos'...")
             try:
                 todos_button = WebDriverWait(driver, 15).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[@class='_toggleGroupItem_13z1p_1']//p[contains(text(), 'Todos')]"))
+                    EC.element_to_be_clickable((
+                        By.XPATH,
+                        "//button[.//*[normalize-space()='Todos'] or normalize-space()='Todos']",
+                    ))
                 )
-                parent_button = todos_button.find_element(By.XPATH, "..")
-                driver.execute_script("arguments[0].click();", parent_button)
+                driver.execute_script("arguments[0].click();", todos_button)
                 time.sleep(2)
                 print(f"   [OK] Botón 'Todos' clicado")
             except Exception as e:
@@ -278,6 +313,8 @@ class BatchHumanLikeScraper:
                         stats = stats_el.text.strip() if stats_el else None
 
                     if action:
+                        if action in ("Quinteto Inicial", "Cinco Inicial"):
+                            action = "Quinteto inicial"
                         extracted_data.append({
                             'id_partido': game_id,
                             'periodo': current_period,
@@ -327,7 +364,19 @@ class BatchHumanLikeScraper:
             return f"ERROR en {game_id}: {e}"
         finally:
             if driver:
-                self.driver_pool.put(driver)
+                try:
+                    driver.current_url
+                    self.driver_pool.put(driver)
+                except Exception:
+                    print("   [INFO] Descartando navegador cerrado; creando uno nuevo...")
+                    try:
+                        driver.quit()
+                    except Exception:
+                        pass
+                    try:
+                        self.driver_pool.put(self.setup_undetected_driver())
+                    except Exception as replacement_error:
+                        print(f"   [ERROR] No se pudo recrear Chrome: {replacement_error}")
 
     def verify_existing_files(self, game_ids):
         """Verifica que los ficheros PBP existentes tienen marcadores correctos."""

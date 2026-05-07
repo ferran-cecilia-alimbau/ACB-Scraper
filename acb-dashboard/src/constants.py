@@ -56,6 +56,9 @@ TEAM_NAME_MAP = {
     "La Laguna Tenerife": "La Laguna TFE",
     "MoraBanc Andorra": "MoraBanc And",
     "Joventut Badalona": "Joventut",
+    "Asisa Joventut": "Joventut",
+    "ASISA Joventut": "Joventut",
+    "Surne Bilbao Basket": "Surne Bilbao",
 }
 
 # 18 equipos únicos (Baskonia normalizado)

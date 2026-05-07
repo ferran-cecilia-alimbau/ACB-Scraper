@@ -28,12 +28,25 @@ TEAM_NAME_MAP = {
     "La Laguna Tenerife": "La Laguna TFE",
     "MoraBanc Andorra": "MoraBanc And",
     "Joventut Badalona": "Joventut",
+    "Asisa Joventut": "Joventut",
+    "ASISA Joventut": "Joventut",
+    "Surne Bilbao Basket": "Surne Bilbao",
+}
+
+ACTION_NAME_MAP = {
+    "Quinteto Inicial": "Quinteto inicial",
+    "Cinco Inicial": "Quinteto inicial",
 }
 
 
 def normalize_team_name(name: str) -> str:
     """Normaliza nombre de equipo al formato corto usado en estadisticas_partido."""
     return TEAM_NAME_MAP.get(name, name)
+
+
+def normalize_action_name(action: str) -> str:
+    """Normaliza variantes de acciones PBP al vocabulario del motor analítico."""
+    return ACTION_NAME_MAP.get(action, action)
 
 
 def _build_team_lookup(game_info_path: str = GAME_INFO_PATH) -> dict:
@@ -60,6 +73,10 @@ def load_single_game(filepath: str, team_lookup: dict = None) -> pd.DataFrame:
     """
     df = pd.read_csv(filepath)
 
+    if "accion" in df.columns:
+        df["accion"] = df["accion"].map(
+            lambda x: normalize_action_name(x) if isinstance(x, str) else x
+        )
     # Invertir orden (los datos vienen en cronología inversa)
     df = df.iloc[::-1].reset_index(drop=True)
 
