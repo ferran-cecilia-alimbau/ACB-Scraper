@@ -7,8 +7,10 @@ procesando los partidos y almacenando los resultados.
 import json
 import pandas as pd
 import asyncio
+import argparse
 import os
 import sys
+import tempfile
 from typing import Dict, Any, List, Set, Tuple, TypeAlias, Optional
 from dataclasses import dataclass
 import logging
@@ -275,9 +277,21 @@ def save_to_csv(data: pd.DataFrame, output_file: str) -> bool:
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir, exist_ok=True)
 
-        # Guardar archivo
+        # Guardar archivo de forma atomica para no dejar CSVs corruptos si el
+        # proceso se corta durante una ejecucion automatizada.
         logger.info(f"Guardando datos en {output_file}. Shape del DataFrame: {data.shape}")
-        data.to_csv(output_file, index=False)
+        fd, temp_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(output_file)}.",
+            suffix=".tmp",
+            dir=output_dir or ".",
+        )
+        os.close(fd)
+        try:
+            data.to_csv(temp_path, index=False)
+            os.replace(temp_path, output_file)
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
         logger.info(f"Datos guardados correctamente en {output_file}")
         return True
     except OSError:
@@ -459,7 +473,19 @@ def process_and_save_data(
     logger.info("Procesamiento y guardado de datos completado")
 
 
-async def main():
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Scraper de estadisticas ACB")
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        type=int,
+        metavar="ID",
+        help="Procesar solo estos IDs, manteniendo la configuracion y CSVs actuales.",
+    )
+    return parser.parse_args()
+
+
+async def main(match_ids_override: Optional[List[int]] = None):
     """
     Función principal que coordina el proceso de scraping.
     """
@@ -467,13 +493,20 @@ async def main():
         # Cargar configuración
         config = load_config()
 
-        # Cargar IDs de partidos
-        match_ids = load_match_ids()
+        # Cargar IDs de partidos. El fichero completo se mantiene como fuente
+        # de orden/jornada aunque el orquestador pida procesar solo unos IDs.
+        configured_match_ids = load_match_ids()
+        match_ids = match_ids_override if match_ids_override is not None else configured_match_ids
 
         # ACB Live ya no expone la jornada en la ficha del partido. El input
         # oficial del scraper esta ordenado por calendario; con 18 equipos son
         # 9 partidos por jornada.
-        config['_match_id_to_jornada'] = {match_id: (idx // 9) + 1 for idx, match_id in enumerate(match_ids)}
+        jornada_match_ids = configured_match_ids + [
+            match_id for match_id in match_ids if match_id not in configured_match_ids
+        ]
+        config['_match_id_to_jornada'] = {
+            match_id: (idx // 9) + 1 for idx, match_id in enumerate(jornada_match_ids)
+        }
 
         # Cargar datos existentes
         dataframes, existing_ids = load_existing_data(config)
@@ -481,11 +514,12 @@ async def main():
         # Preparar conjunto de IDs de perfiles existentes
         existing_profile_ids = _profile_ids_from_df(dataframes.get('output_file_player_profiles'))
 
-        # Calcular todos los IDs existentes
-        all_existing_ids = set().union(*existing_ids.values())
+        # La fila de estadisticas_partido.csv es el marcador canonico de que
+        # un partido esta procesado. No mezclamos player_id con id_partido.
+        existing_game_ids = existing_ids.get('output_file_game', set())
 
         # Filtrar IDs nuevos
-        new_match_ids = [id for id in match_ids if id not in all_existing_ids]
+        new_match_ids = [id for id in match_ids if id not in existing_game_ids]
         logger.info(f"Iniciando proceso de scraping para {len(new_match_ids)} nuevos partidos")
 
         # Si no hay partidos nuevos, terminar
@@ -505,7 +539,7 @@ async def main():
             new_match_ids,
             config['base_url'],
             config,
-            all_existing_ids,
+            existing_game_ids,
             existing_profile_ids,
             on_result=save_single_result
         )
@@ -526,4 +560,5 @@ async def main():
 
 if __name__ == "__main__":
     # Ejecutar el proceso principal
-    asyncio.run(main())
+    args = parse_args()
+    asyncio.run(main(args.only))

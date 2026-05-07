@@ -1,0 +1,15 @@
+services:
+  scraper:
+    build:
+      context: .
+    image: acb-scraper:latest
+    working_dir: /app
+    environment:
+      CHROME_BINARY: /usr/bin/chromium
+      CHROMEDRIVER: /usr/bin/chromedriver
+      PYTHONUNBUFFERED: "1"
+      TZ: Europe/Madrid
+    volumes:
+      - ./data:/app/data
+    shm_size: "1gb"
+    init: true

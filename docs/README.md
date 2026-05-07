@@ -24,7 +24,7 @@ ACB-Scraper/
 ├── data/
 │   ├── input/match_ids.json
 │   ├── output/*.csv                        # 4 CSVs de estadísticas
-│   └── play_by_play/play_by_play_*.csv     # 152 ficheros PBP
+│   └── play_by_play/play_by_play_*.csv     # Ficheros PBP por partido
 ├── acb-dashboard/
 │   ├── app.py                              # Entry point Streamlit
 │   ├── pages/ (8 páginas)
@@ -55,6 +55,7 @@ ACB-Scraper/
 | Script | Función |
 |--------|---------|
 | `scripts/get_match_ids.py` | Extrae IDs de partidos del calendario ACB |
+| `scripts/update_all.py` | Orquesta actualizacion completa, backups y verificaciones |
 | `scripts/batch_play_by_play_v2.py` | Scraper PBP con Selenium + webdriver-manager (versión actual) |
 | `scripts/batch_play_by_play.py` | Scraper PBP v1 (legacy, usa undetected-chromedriver) |
 | `scripts/verify_pbp_completeness.py` | Verifica completitud de ficheros PBP |
@@ -65,17 +66,14 @@ ACB-Scraper/
 # 0. Instalar dependencias con Python 3.12
 py -3.12 -m pip install -r requirements.txt
 
-# 1. Obtener IDs de partidos
-py -3.12 scripts/get_match_ids.py
+# 1. Actualizar todo el dataset incrementalmente
+py -3.12 scripts/update_all.py --verify-pbp
 
 # 2. Validar scraper con salidas temporales
 py -3.12 scripts/validate_scraper.py
 
-# 3. Scrapear estadísticas (4 CSVs)
-py -3.12 main.py
-
-# 4. Scrapear play-by-play
-py -3.12 scripts/batch_play_by_play_v2.py
+# 3. Simular una ejecucion sin modificar datos
+py -3.12 scripts/update_all.py --dry-run
 ```
 
 El scraper guarda los CSVs tras cada partido procesado correctamente. En logs se registran métricas por partido: descarga, parseo, perfiles, guardado y número de perfiles completos descargados. `scripts/validate_scraper.py` ejecuta 1-2 partidos en una carpeta temporal, comprueba filas, duplicados, campos críticos, marcador y un segundo pase con perfiles ya existentes.
@@ -189,9 +187,7 @@ Los totales de equipo son los oficiales de ACB. Algunas estadísticas pueden inc
 
 ### Play-by-play (`data/play_by_play/`)
 
-152 ficheros `play_by_play_[ID].csv` con todas las jugadas de cada partido. Cada registro contiene: id_partido, periodo, tiempo, marcador, equipo (LOCAL/VISITANTE), jugador, acción.
-
-**Bug conocido**: 75 de los 152 ficheros contienen datos de un partido diferente al indicado por el nombre del fichero (bug off-by-one en el scraper). Solo 77 partidos tienen datos PBP correctos. La solución está implementada en `acb-dashboard/src/constants.py` (diccionarios `PBP_GAME_REMAP` y `PBP_REVERSE_REMAP`) y en `acb-dashboard/src/pbp_bridge.py` que resuelve el fichero correcto automáticamente.
+Ficheros `play_by_play_[ID].csv` con todas las jugadas de cada partido. Cada registro contiene: id_partido, periodo, tiempo, marcador, equipo, jugador, acción y estadística. El scraper PBP verifica el marcador final contra `estadisticas_partido.csv`.
 
 ### Normalización de nombres de equipos
 
@@ -209,9 +205,11 @@ Los datos de partidos usan nombres cortos (ej. "Baskonia") mientras que los perf
 
 ```bash
 # Scraping
-python scripts/get_match_ids.py
-python main.py
-python scripts/batch_play_by_play_v2.py
+python scripts/update_all.py --verify-pbp
+
+# Docker
+docker compose build
+docker compose run --rm scraper python scripts/update_all.py --verify-pbp
 
 # Dashboard
 cd acb-dashboard

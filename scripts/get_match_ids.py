@@ -8,6 +8,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = BASE_DIR / 'data' / 'input' / 'match_ids.json'
+DEFAULT_CALENDAR_URL = "https://www.acb.com/es/liga/calendario"
 
 def get_match_ids(url):
     # Hacer la petición GET a la página
@@ -41,13 +42,18 @@ def save_to_json(data, filename):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
-# URL de la página con el calendario de Liga Endesa 2025-26
-url = "https://www.acb.com/es/liga/calendario"
+def main():
+    # URL de la página con el calendario de Liga Endesa 2025-26
+    url = DEFAULT_CALENDAR_URL
 
-# Obtener los IDs de los partidos
-match_ids = get_match_ids(url)
+    # Obtener los IDs de los partidos
+    match_ids = get_match_ids(url)
 
-# Guardar los IDs en un archivo JSON
-save_to_json({"match_ids": match_ids}, OUTPUT_PATH)
+    # Guardar los IDs en un archivo JSON
+    save_to_json({"match_ids": match_ids}, OUTPUT_PATH)
 
-print(f"Se han extraído {len(match_ids)} IDs de partidos y se han guardado en 'match_ids.json'")
+    print(f"Se han extraído {len(match_ids)} IDs de partidos y se han guardado en 'match_ids.json'")
+
+
+if __name__ == "__main__":
+    main()

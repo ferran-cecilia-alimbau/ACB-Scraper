@@ -19,6 +19,8 @@ venv/
 logs/
 *.log
 data/logs/
+data/backups/
+data/run_state/
 
 # Data files
 *.csv
@@ -57,6 +59,7 @@ analytics/requirements.txt
 scripts/audit_play_by_play.py
 data/input/match_ids.json
 scripts/google-chrome-stable_current_amd64.deb
+.chrome-for-testing/
 
 # Dashboard
 acb-dashboard/__pycache__/

@@ -7,6 +7,7 @@ import json
 import time
 import csv
 import queue
+import tempfile
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from selenium import webdriver
@@ -27,10 +28,29 @@ def _find_chrome_binary():
     env_binary = os.environ.get("CHROME_BINARY") or os.environ.get("GOOGLE_CHROME_BIN")
     candidates = [
         env_binary,
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
         str(script_dir.parent / ".chrome-for-testing" / "chrome-mac-arm64" / "Google Chrome for Testing.app" / "Contents" / "MacOS" / "Google Chrome for Testing"),
         str(script_dir.parent / ".chrome-for-testing" / "chrome-mac-x64" / "Google Chrome for Testing.app" / "Contents" / "MacOS" / "Google Chrome for Testing"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def _find_chromedriver_binary():
+    """Busca un chromedriver instalado en el sistema antes de descargar nada."""
+    env_driver = os.environ.get("CHROMEDRIVER") or os.environ.get("CHROME_DRIVER")
+    candidates = [
+        env_driver,
+        "/usr/bin/chromedriver",
+        "/usr/local/bin/chromedriver",
+        "/snap/bin/chromium.chromedriver",
     ]
     for candidate in candidates:
         if candidate and os.path.exists(candidate):
@@ -94,7 +114,12 @@ class BatchHumanLikeScraper:
                 options.binary_location = chrome_binary
                 print(f"   [INFO] Usando Chrome: {chrome_binary}")
 
-            if chrome_binary:
+            chromedriver_binary = _find_chromedriver_binary()
+            if chromedriver_binary:
+                print(f"   [INFO] Usando ChromeDriver: {chromedriver_binary}")
+                service = Service(chromedriver_binary)
+                driver = webdriver.Chrome(service=service, options=options)
+            elif chrome_binary:
                 # webdriver-manager: usa caché local, sin descargar si ya existe
                 os.environ['WDM_LOCAL'] = '1'
                 try:
@@ -349,10 +374,21 @@ class BatchHumanLikeScraper:
                 return error_msg
 
             fieldnames = ['id_partido', 'periodo', 'tiempo', 'marcador_local', 'marcador_visitante', 'equipo', 'jugador', 'accion', 'estadistica']
-            with open(output_filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(extracted_data)
+            fd, temp_path = tempfile.mkstemp(
+                prefix=f".play_by_play_{game_id}.",
+                suffix=".tmp",
+                dir=self.output_dir,
+            )
+            os.close(fd)
+            try:
+                with open(temp_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(extracted_data)
+                os.replace(temp_path, output_filepath)
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
             print(f"   [OK] CSV generado: {output_filepath}")
             return f"OK: {game_id} ({len(extracted_data)} jugadas, {cinco_inicial_count} quintetos)"
 
