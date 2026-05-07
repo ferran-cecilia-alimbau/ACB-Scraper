@@ -1,0 +1,40 @@
+export const SEASON = '2024-25';
+
+export const TEAM_COLORS: Record<string, [string, string]> = {
+  'Unicaja': ['#00A651', '#FFFFFF'],
+  'Surne Bilbao': ['#000000', '#FF0000'],
+  'Recoletas Salud': ['#0033A0', '#D50032'],
+  'Bàsquet Girona': ['#E31837', '#FFFFFF'],
+  'La Laguna TFE': ['#FFD700', '#003DA5'],
+  'BAXI Manresa': ['#E31837', '#FFFFFF'],
+  'Hiopos Lleida': ['#003DA5', '#FFD700'],
+  'Río Breogán': ['#004D40', '#FFFFFF'],
+  'Barça': ['#A50044', '#004D98'],
+  'Real Madrid': ['#FFFFFF', '#00529F'],
+  'Joventut': ['#00A651', '#000000'],
+  'Casademont Zgz': ['#D50032', '#FFFFFF'],
+  'Valencia Basket': ['#FF6600', '#000000'],
+  'MoraBanc And': ['#E31837', '#1B365D'],
+  'UCAM Murcia': ['#E31837', '#000000'],
+  'Coviran Granada': ['#D50032', '#000000'],
+  'Dreamland GC': ['#FFD700', '#003DA5'],
+  'Baskonia': ['#003DA5', '#D50032'],
+};
+
+export const STAT_LABELS: Record<string, string> = {
+  puntos_avg: 'Puntos',
+  rebotes_avg: 'Rebotes',
+  rebotes_totales_avg: 'Rebotes',
+  asistencias_avg: 'Asistencias',
+  robos_avg: 'Robos',
+  perdidas_avg: 'Pérdidas',
+  tapones_avg: 'Tapones',
+  tapones_favor_avg: 'Tapones',
+  valoracion_avg: 'Valoración',
+  minutos_decimal_avg: 'Minutos',
+  t2_pct: 'T2%',
+  t3_pct: 'T3%',
+  tl_pct: 'TL%',
+  efg_pct: 'eFG%',
+  ts_pct: 'TS%',
+};

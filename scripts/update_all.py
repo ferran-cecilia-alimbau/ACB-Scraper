@@ -48,9 +48,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force-pbp", action="store_true", help="Re-scrapear PBP dentro del alcance seleccionado.")
     parser.add_argument("--dry-run", action="store_true", help="Mostrar acciones sin modificar datos.")
     parser.add_argument("--only", nargs="+", type=int, metavar="ID", help="Limitar la ejecucion a estos IDs.")
-    parser.add_argument("--backup-retention", type=int, default=14, help="Backups rotativos a conservar.")
+    parser.add_argument("--backup-retention", type=int, default=14, help="Backups rotativos a conservar (>=1).")
     parser.add_argument("--python", default=sys.executable, help="Interprete Python para subprocess.")
-    return parser.parse_args()
+    parser.add_argument(
+        "--subprocess-timeout",
+        type=int,
+        default=10800,
+        help="Timeout en segundos por subproceso (stats/PBP). 0 desactiva.",
+    )
+    args = parser.parse_args()
+    if args.backup_retention < 1:
+        parser.error("--backup-retention debe ser >= 1")
+    if args.subprocess_timeout < 0:
+        parser.error("--subprocess-timeout no puede ser negativo")
+    return args
 
 
 def timestamp() -> str:
@@ -153,7 +164,12 @@ def format_cmd(command: Iterable[Any]) -> str:
     return " ".join(str(part) for part in command)
 
 
-def run_command(command: list[Any], dry_run: bool, log_file=None) -> dict[str, Any]:
+def run_command(
+    command: list[Any],
+    dry_run: bool,
+    log_file=None,
+    timeout: int | None = None,
+) -> dict[str, Any]:
     command_text = format_cmd(command)
     if dry_run:
         log(f"[DRY-RUN] {command_text}", log_file)
@@ -171,13 +187,28 @@ def run_command(command: list[Any], dry_run: bool, log_file=None) -> dict[str, A
     )
 
     assert process.stdout is not None
-    for line in process.stdout:
-        log(line.rstrip("\n"), log_file)
-
-    returncode = process.wait()
+    timed_out = False
+    deadline = (time.monotonic() + timeout) if timeout else None
+    try:
+        for line in process.stdout:
+            log(line.rstrip("\n"), log_file)
+            if deadline is not None and time.monotonic() > deadline:
+                timed_out = True
+                log(f"[TIMEOUT] superado timeout={timeout}s :: {command_text}", log_file)
+                process.kill()
+                break
+        returncode = process.wait()
+    except KeyboardInterrupt:
+        process.kill()
+        raise
     elapsed = round(time.perf_counter() - started, 2)
     log(f"[DONE] rc={returncode} elapsed={elapsed}s :: {command_text}", log_file)
-    return {"command": command_text, "returncode": returncode, "elapsed_seconds": elapsed}
+    return {
+        "command": command_text,
+        "returncode": returncode,
+        "elapsed_seconds": elapsed,
+        "timed_out": timed_out,
+    }
 
 
 def verify_stats(target_ids: Iterable[int] | None = None) -> dict[str, Any]:
@@ -292,7 +323,7 @@ def verify_pbp_files(target_ids: Iterable[int], min_events: int = 200, min_lineu
             if "quinteto" in (row.get("accion") or "").lower()
             or "cinco inicial" in (row.get("accion") or "").lower()
         )
-        if not (len(rows) >= min_events or lineups >= min_lineups):
+        if len(rows) < min_events or lineups < min_lineups:
             incomplete.append({"id_partido": game_id, "events": len(rows), "lineups": lineups})
 
         last_local, last_visitor = 0, 0
@@ -385,13 +416,22 @@ def main() -> int:
             log_file,
         )
 
+        subprocess_timeout = args.subprocess_timeout or None
+
+        # Si los CSV estan vacios y no hay filtro --only, dejamos que main.py
+        # procese todo desde match_ids.json sin pasar cientos de IDs por argv.
+        cold_start = not stats_existing_before and not selected_ids
+        stats_command = [args.python, "main.py"]
+        if not cold_start:
+            stats_command += ["--only", *stats_missing]
+
         if args.dry_run:
             if updated_ids != previous_ids:
                 log(f"[DRY-RUN] Actualizaria {MATCH_IDS_PATH}", log_file)
             if will_change:
                 log("[DRY-RUN] Crearia backup rotativo antes de modificar datos", log_file)
             if stats_missing:
-                run_command([args.python, "main.py", "--only", *stats_missing], True, log_file)
+                run_command(stats_command, True, log_file)
             if not args.skip_pbp:
                 pbp_scope = scope_ids & (stats_existing_before | set(stats_missing))
                 pbp_targets = sorted(pbp_scope if args.force_pbp else pbp_scope - pbp_existing_before)
@@ -412,7 +452,7 @@ def main() -> int:
             log(f"[IDS] match_ids.json actualizado: {len(previous_ids)} -> {len(updated_ids)}", log_file)
 
         if stats_missing:
-            result = run_command([args.python, "main.py", "--only", *stats_missing], False, log_file)
+            result = run_command(stats_command, False, log_file, timeout=subprocess_timeout)
             state["commands"].append(result)
             if result["returncode"] != 0:
                 exit_code = 1
@@ -438,7 +478,7 @@ def main() -> int:
                 ]
                 if args.force_pbp:
                     command.insert(2, "--force")
-                result = run_command(command, False, log_file)
+                result = run_command(command, False, log_file, timeout=subprocess_timeout)
                 state["commands"].append(result)
                 if result["returncode"] != 0:
                     exit_code = 1
@@ -448,21 +488,36 @@ def main() -> int:
             log("[PBP] Saltado porque el paso de stats fallo", log_file)
 
         verify_target_ids = sorted(stats_existing_after)
+        # Verificacion global (informativa) y verificacion del alcance de la
+        # corrida (decide exit_code: no queremos que problemas heredados de
+        # corridas anteriores hagan fallar el cron actual).
+        run_scope_ids = sorted(scope_ids & stats_existing_after) if not selected_ids else sorted(scope_ids)
         stats_verify = verify_stats(verify_target_ids)
+        stats_verify_scope = verify_stats(run_scope_ids) if run_scope_ids else {"ok": True, "target_games": 0}
         state["stats_verify"] = stats_verify
-        log(f"[VERIFY][STATS] ok={stats_verify.get('ok')} target={stats_verify.get('target_games')}", log_file)
+        state["stats_verify_scope"] = stats_verify_scope
+        log(f"[VERIFY][STATS][global] ok={stats_verify.get('ok')} target={stats_verify.get('target_games')}", log_file)
+        log(f"[VERIFY][STATS][scope] ok={stats_verify_scope.get('ok')} target={stats_verify_scope.get('target_games')}", log_file)
         if not stats_verify.get("ok"):
-            log(f"[VERIFY][STATS] Detalle: {json.dumps(stats_verify, ensure_ascii=False)}", log_file)
+            log(f"[VERIFY][STATS][global] Detalle: {json.dumps(stats_verify, ensure_ascii=False)}", log_file)
+        if not stats_verify_scope.get("ok"):
+            log(f"[VERIFY][STATS][scope] Detalle: {json.dumps(stats_verify_scope, ensure_ascii=False)}", log_file)
             exit_code = 1
 
         if args.skip_pbp:
             state["pbp_verify"] = {"skipped": True}
+            state["pbp_verify_scope"] = {"skipped": True}
         else:
             pbp_verify = verify_pbp_files(verify_target_ids)
+            pbp_verify_scope = verify_pbp_files(run_scope_ids) if run_scope_ids else {"ok": True, "target_games": 0}
             state["pbp_verify"] = pbp_verify
-            log(f"[VERIFY][PBP] ok={pbp_verify.get('ok')} target={pbp_verify.get('target_games')}", log_file)
+            state["pbp_verify_scope"] = pbp_verify_scope
+            log(f"[VERIFY][PBP][global] ok={pbp_verify.get('ok')} target={pbp_verify.get('target_games')}", log_file)
+            log(f"[VERIFY][PBP][scope] ok={pbp_verify_scope.get('ok')} target={pbp_verify_scope.get('target_games')}", log_file)
             if not pbp_verify.get("ok"):
-                log(f"[VERIFY][PBP] Detalle: {json.dumps(pbp_verify, ensure_ascii=False)}", log_file)
+                log(f"[VERIFY][PBP][global] Detalle: {json.dumps(pbp_verify, ensure_ascii=False)}", log_file)
+            if not pbp_verify_scope.get("ok"):
+                log(f"[VERIFY][PBP][scope] Detalle: {json.dumps(pbp_verify_scope, ensure_ascii=False)}", log_file)
                 exit_code = 1
 
             if args.verify_pbp and verify_target_ids:
@@ -476,6 +531,7 @@ def main() -> int:
                     ],
                     False,
                     log_file,
+                    timeout=subprocess_timeout,
                 )
                 state["commands"].append(result)
                 if result["returncode"] != 0:

@@ -7,7 +7,7 @@ After=network-online.target docker.service
 Type=oneshot
 WorkingDirectory=/opt/acb-scraper
 Environment=TZ=Europe/Madrid
-ExecStart=/usr/bin/flock -n /tmp/acb-scraper.lock /usr/bin/docker compose run --rm scraper python scripts/update_all.py --verify-pbp
+ExecStart=/usr/bin/flock -w 1800 /tmp/acb-scraper.lock /usr/bin/docker compose run --rm scraper python scripts/update_all.py --verify-pbp
 TimeoutStartSec=12h
 Nice=10
 IOSchedulingClass=best-effort
