@@ -108,6 +108,12 @@ class DataStore:
         cls.game_info = load_game_info()
         cls.team_stats = load_team_stats()
         cls.player_profiles = load_player_profiles()
+        # Invalida caches dependientes (percentiles, season aggregate)
+        try:
+            from .preprocessing import reset_player_caches
+            reset_player_caches()
+        except ImportError:
+            pass
 
 
 data = DataStore()

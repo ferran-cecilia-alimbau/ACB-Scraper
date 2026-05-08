@@ -1,9 +1,13 @@
 """Rankings API routes."""
 
+from typing import Optional
+
 from fastapi import APIRouter, Query
 
 from ..services.data_loader import data
-from ..services.preprocessing import aggregate_player_season, aggregate_team_season
+from ..services.preprocessing import (
+    aggregate_team_season, get_player_season, PERCENTILE_STATS,
+)
 from ..services.metrics import add_advanced_stats_to_teams
 from ..services.constants import TEAM_COLORS
 
@@ -12,23 +16,47 @@ from ..services.json_utils import safe
 router = APIRouter(prefix="/api/rankings", tags=["rankings"])
 
 
+# Alias api_key → columna interna para rankings (mismo set que percentiles + extras)
+RANKING_STATS: dict[str, str] = {
+    **PERCENTILE_STATS,
+    "perdidas_avg": "perdidas_avg",
+    "t2_pct": "t2_pct",
+    "t3_pct": "t3_pct",
+    "tl_pct": "tl_pct",
+    "rebotes_of_avg": "rebotes_ofensivos_avg",
+    "rebotes_def_avg": "rebotes_defensivos_avg",
+}
+
+
 @router.get("/players")
 def player_rankings(
-    stat: str = Query("puntos_avg", description="Stat column to rank by"),
-    min_games: int = Query(5),
-    min_minutes: float = Query(10),
+    stat: str = Query("puntos_avg", description="Métrica a rankear"),
+    min_games: int = Query(5, ge=0),
+    min_minutes: float = Query(10, ge=0),
+    team: Optional[str] = Query(None),
+    position: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
 ):
-    season = aggregate_player_season(data.player_stats)
+    if stat not in RANKING_STATS:
+        return {"error": f"Unknown stat: {stat}", "available": list(RANKING_STATS.keys())}
+    col = RANKING_STATS[stat]
 
-    # Filter
-    filtered = season[season["partidos"] >= min_games].copy()
+    season = get_player_season()
+    profiles = data.player_profiles[["player_id", "posicion"]].drop_duplicates("player_id")
+    merged = season.merge(profiles, on="player_id", how="left")
+
+    filtered = merged[merged["partidos"] >= min_games].copy()
     if min_minutes > 0:
         filtered = filtered[filtered["minutos_decimal_avg"] >= min_minutes]
+    if team:
+        filtered = filtered[filtered["equipo"] == team]
+    if position:
+        filtered = filtered[filtered["posicion"].astype(str) == position]
 
-    if stat not in filtered.columns:
-        return {"error": f"Unknown stat: {stat}"}
+    if col not in filtered.columns:
+        return {"error": f"Column not present: {col}"}
 
-    filtered = filtered.sort_values(stat, ascending=False).head(50)
+    filtered = filtered.sort_values(col, ascending=False).head(limit)
 
     result = []
     for rank, (_, row) in enumerate(filtered.iterrows(), 1):
@@ -39,9 +67,10 @@ def player_rankings(
             "nombre": row["nombre"],
             "equipo": row["equipo"],
             "color": colors[0],
+            "posicion": str(row.get("posicion", "")) if row.get("posicion") else "",
             "partidos": safe(row["partidos"]),
             "minutos_avg": round(float(row["minutos_decimal_avg"]), 1),
-            "value": round(float(row[stat]), 2),
+            "value": round(float(row[col]), 2),
             "puntos_avg": round(float(row["puntos_avg"]), 1),
             "rebotes_avg": round(float(row["rebotes_totales_avg"]), 1),
             "asistencias_avg": round(float(row["asistencias_avg"]), 1),

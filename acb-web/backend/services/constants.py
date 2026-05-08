@@ -47,7 +47,7 @@ POSITION_MAP = {
 
 POSITION_ORDER = ["B", "E", "A", "AP", "P"]
 
-# Normalización de nombres de equipo
+# Normalización de nombres de equipo (forma corta canónica → forma corta)
 TEAM_NAME_MAP = {
     "Kosner Baskonia": "Baskonia",
     "Recoletas Salud San Pablo Burgos": "Recoletas Salud",
@@ -56,7 +56,37 @@ TEAM_NAME_MAP = {
     "La Laguna Tenerife": "La Laguna TFE",
     "MoraBanc Andorra": "MoraBanc And",
     "Joventut Badalona": "Joventut",
+    # Sponsor renames vistos en CSVs recientes
+    "Asisa Joventut": "Joventut",
+    "ASISA Joventut": "Joventut",
+    "Surne Bilbao Basket": "Surne Bilbao",
+    "Bilbao Basket": "Surne Bilbao",
+    "Lenovo Tenerife": "La Laguna TFE",
 }
+
+# Slug url-safe por equipo (sincronizado con frontend lib/teams.ts)
+TEAM_SLUGS = {
+    "Real Madrid": "real-madrid",
+    "Barça": "barca",
+    "Unicaja": "unicaja",
+    "Valencia Basket": "valencia",
+    "Baskonia": "baskonia",
+    "Joventut": "joventut",
+    "Casademont Zgz": "zaragoza",
+    "Bàsquet Girona": "girona",
+    "BAXI Manresa": "manresa",
+    "Surne Bilbao": "bilbao",
+    "MoraBanc And": "andorra",
+    "UCAM Murcia": "murcia",
+    "Río Breogán": "breogan",
+    "Hiopos Lleida": "lleida",
+    "Coviran Granada": "granada",
+    "Dreamland GC": "gran-canaria",
+    "La Laguna TFE": "tenerife",
+    "Recoletas Salud": "burgos",
+}
+
+TEAM_BY_SLUG = {v: k for k, v in TEAM_SLUGS.items()}
 
 # 18 equipos únicos
 ALL_TEAMS = sorted([

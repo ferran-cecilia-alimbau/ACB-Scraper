@@ -270,6 +270,51 @@ h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); line-height: 1.1; }
   outline-offset: 3px;
 }
 
+/* Inputs editoriales — sobrios, sin sombra, hairline negativo */
+.input-editorial {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  transition: border-color 0.18s ease;
+}
+.input-editorial:hover {
+  border-color: var(--rule-strong);
+}
+.input-editorial:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.input-editorial::placeholder {
+  color: var(--ink-soft);
+}
+
+/* Botón sutil editorial */
+.btn-editorial {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-editorial:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Animación entry */
 @keyframes editorial-in {
   from { opacity: 0; transform: translateY(6px); }

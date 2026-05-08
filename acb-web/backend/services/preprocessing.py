@@ -70,6 +70,35 @@ def standings_evolution(game_info: pd.DataFrame) -> list[dict]:
     return evolution
 
 
+# Precalculado en startup vía DataStore
+_PLAYER_SEASON_CACHE: pd.DataFrame | None = None
+_PLAYER_PERCENTILES_CACHE: dict[str, dict[int, float]] | None = None
+_PLAYER_RANKS_CACHE: dict[str, dict[int, int]] | None = None
+
+# Métricas para las que precomputamos percentiles y ranks. La clave es el
+# nombre del campo en la API; el valor es la columna interna en el DataFrame.
+PERCENTILE_STATS: dict[str, str] = {
+    "puntos_avg": "puntos_avg",
+    "rebotes_avg": "rebotes_totales_avg",
+    "asistencias_avg": "asistencias_avg",
+    "robos_avg": "robos_avg",
+    "tapones_avg": "tapones_favor_avg",
+    "valoracion_avg": "valoracion_avg",
+    "minutos_avg": "minutos_decimal_avg",
+    "ts_pct": "ts_pct",
+    "efg_pct": "efg_pct",
+    "puntos_per36": "puntos_per36",
+    "rebotes_per36": "rebotes_totales_per36",
+    "asistencias_per36": "asistencias_per36",
+    "valoracion_per36": "valoracion_per36",
+    "plus_minus_avg": "plus_minus_avg",
+}
+
+# Default mínimos para el cálculo de percentiles (filtros visibles en /jugadores)
+DEFAULT_MIN_GAMES = 5
+DEFAULT_MIN_MINUTES = 10.0
+
+
 def aggregate_player_season(player_stats: pd.DataFrame) -> pd.DataFrame:
     sum_cols = [
         "puntos", "t2_intentados", "t2_anotados", "t3_intentados",
@@ -84,11 +113,15 @@ def aggregate_player_season(player_stats: pd.DataFrame) -> pd.DataFrame:
     agg_dict["minutos_decimal"] = "sum"
     agg_dict["id_partido"] = "count"
     agg_dict["es_titular"] = "sum"
+    if "plus_minus" in player_stats.columns:
+        agg_dict["plus_minus"] = "sum"
 
     grouped = player_stats.groupby(["player_id", "nombre", "equipo"]).agg(agg_dict).reset_index()
     grouped = grouped.rename(columns={"id_partido": "partidos", "es_titular": "titularidades"})
 
     avg_cols = sum_cols + ["minutos_decimal"]
+    if "plus_minus" in grouped.columns:
+        avg_cols = avg_cols + ["plus_minus"]
     for col in avg_cols:
         grouped[f"{col}_avg"] = grouped[col] / grouped["partidos"]
 
@@ -126,7 +159,132 @@ def aggregate_player_season(player_stats: pd.DataFrame) -> pd.DataFrame:
             grouped[col] * 36 / grouped["minutos_decimal"], 0
         )
 
+    if "plus_minus_avg" not in grouped.columns:
+        grouped["plus_minus_avg"] = 0.0
+
     return grouped
+
+
+def compute_player_percentiles(
+    season: pd.DataFrame,
+    min_games: int = DEFAULT_MIN_GAMES,
+    min_minutes: float = DEFAULT_MIN_MINUTES,
+) -> tuple[dict[str, dict[int, float]], dict[str, dict[int, int]]]:
+    """Devuelve (percentiles, ranks) por player_id para cada métrica en PERCENTILE_STATS.
+
+    Solo se calculan sobre jugadores que cumplen los mínimos. Para los jugadores
+    fuera del pool, el percentil queda como `None`. Esto evita que un jugador
+    con 1 partido y 50 puntos aparezca como "percentil 100" en anotación.
+    """
+    eligible = season[
+        (season["partidos"] >= min_games)
+        & (season["minutos_decimal_avg"] >= min_minutes)
+    ].copy()
+
+    percentiles: dict[str, dict[int, float]] = {}
+    ranks: dict[str, dict[int, int]] = {}
+
+    if eligible.empty:
+        return percentiles, ranks
+
+    n = len(eligible)
+    for api_key, col in PERCENTILE_STATS.items():
+        if col not in eligible.columns:
+            continue
+        values = eligible[col]
+        # Percentil = % de jugadores con valor estrictamente menor (rank "bottom")
+        pct = values.rank(method="min", ascending=True).sub(1).div(max(n - 1, 1)).mul(100)
+        rank = values.rank(method="min", ascending=False).astype(int)
+        percentiles[api_key] = dict(zip(eligible["player_id"].tolist(), pct.round(1).tolist()))
+        ranks[api_key] = dict(zip(eligible["player_id"].tolist(), rank.tolist()))
+
+    return percentiles, ranks
+
+
+def get_player_season() -> pd.DataFrame:
+    """Devuelve el DataFrame agregado en cache (lazy-load)."""
+    global _PLAYER_SEASON_CACHE
+    if _PLAYER_SEASON_CACHE is None:
+        from .data_loader import data
+        _PLAYER_SEASON_CACHE = aggregate_player_season(data.player_stats)
+    return _PLAYER_SEASON_CACHE
+
+
+def get_player_percentiles() -> tuple[dict[str, dict[int, float]], dict[str, dict[int, int]]]:
+    global _PLAYER_PERCENTILES_CACHE, _PLAYER_RANKS_CACHE
+    if _PLAYER_PERCENTILES_CACHE is None or _PLAYER_RANKS_CACHE is None:
+        season = get_player_season()
+        _PLAYER_PERCENTILES_CACHE, _PLAYER_RANKS_CACHE = compute_player_percentiles(season)
+    return _PLAYER_PERCENTILES_CACHE, _PLAYER_RANKS_CACHE
+
+
+def reset_player_caches() -> None:
+    """Llamar tras recarga de CSVs."""
+    global _PLAYER_SEASON_CACHE, _PLAYER_PERCENTILES_CACHE, _PLAYER_RANKS_CACHE
+    _PLAYER_SEASON_CACHE = None
+    _PLAYER_PERCENTILES_CACHE = None
+    _PLAYER_RANKS_CACHE = None
+
+
+def player_last_n_games(
+    player_stats: pd.DataFrame,
+    game_info: pd.DataFrame,
+    player_name: str,
+    n: int = 5,
+) -> dict:
+    """Medias de los últimos N partidos del jugador y diff vs media de temporada."""
+    player = player_stats[player_stats["nombre"] == player_name].copy()
+    if player.empty:
+        return {"games": 0, "stats": {}, "diff_vs_season": {}}
+
+    player = player.merge(game_info[["id_partido", "jornada_num"]], on="id_partido")
+    player = player.sort_values("jornada_num", ascending=False).head(n)
+    if player.empty:
+        return {"games": 0, "stats": {}, "diff_vs_season": {}}
+
+    cols = ["puntos", "rebotes_totales", "asistencias", "valoracion", "minutos_decimal"]
+    stats_recent = {c: float(player[c].mean()) for c in cols}
+
+    season_full = player_stats[player_stats["nombre"] == player_name]
+    stats_season = {c: float(season_full[c].mean()) for c in cols}
+    diff = {c: round(stats_recent[c] - stats_season[c], 2) for c in cols}
+
+    return {
+        "games": int(len(player)),
+        "stats": {k: round(v, 1) for k, v in stats_recent.items()},
+        "diff_vs_season": diff,
+    }
+
+
+def player_best_game(
+    player_stats: pd.DataFrame,
+    game_info: pd.DataFrame,
+    player_name: str,
+) -> dict:
+    """Partido con mayor valoración del jugador en la temporada."""
+    player = player_stats[player_stats["nombre"] == player_name].copy()
+    if player.empty:
+        return {}
+
+    idx = player["valoracion"].idxmax()
+    if pd.isna(idx):
+        return {}
+    row = player.loc[idx]
+    game = game_info[game_info["id_partido"] == row["id_partido"]]
+    if game.empty:
+        return {}
+    g = game.iloc[0]
+    rival = g["visitante"] if row["equipo"] == g["local"] else g["local"]
+    return {
+        "id_partido": int(row["id_partido"]),
+        "jornada_num": int(g.get("jornada_num", 0)),
+        "fecha": str(g.get("fecha", "")),
+        "rival": rival,
+        "puntos": int(row["puntos"]),
+        "rebotes": int(row["rebotes_totales"]),
+        "asistencias": int(row["asistencias"]),
+        "valoracion": int(row["valoracion"]),
+    }
 
 
 def aggregate_team_season(team_stats: pd.DataFrame) -> pd.DataFrame:
