@@ -2,6 +2,8 @@
 
 Web sobria de la Liga Endesa, en clave editorial. Tipografía cuidada, paleta cálida, datos como protagonistas.
 
+> Proyecto no oficial. No esta afiliado, patrocinado ni aprobado por ACB, Liga Endesa o clubes. Los datos proceden de fuentes publicas y las marcas/logotipos pertenecen a sus propietarios.
+
 ## Stack
 
 - **Frontend**: Next.js 15 (App Router) · React 19 · TypeScript estricto · Tailwind v4 · Newsreader / Inter / IBM Plex Mono.
