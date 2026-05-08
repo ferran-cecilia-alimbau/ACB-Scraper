@@ -104,7 +104,10 @@ export default async function JugadorPage({ params }: { params: Promise<{ id: st
               </h1>
               <div className="flex items-center gap-3 text-sm text-[var(--ink-muted)]">
                 <TeamMonogram name={player.equipo} size="md" />
-                <Link href={`/jornada/1`} className="link-underline">
+                <Link
+                  href={`/jugadores?team=${encodeURIComponent(player.equipo)}`}
+                  className="link-underline"
+                >
                   {teamM.short}
                 </Link>
                 {player.profile.dorsal ? (

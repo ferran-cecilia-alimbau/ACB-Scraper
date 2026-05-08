@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, type ReactNode, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
 
 export interface MetricColumn<T> {
@@ -55,6 +56,15 @@ export function MetricTable<T>({
   const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | undefined>(
     defaultSort,
   );
+  const router = useRouter();
+
+  // Si la columna activa de sort ya no existe en `columns` (p.ej. al cambiar
+  // de vista), reseteamos al defaultSort. React no propaga cambios del prop
+  // inicial de useState, así que lo gestionamos explícitamente aquí.
+  const sortKeyExists = sort ? columns.some((c) => c.key === sort.key) : true;
+  if (!sortKeyExists) {
+    setSort(defaultSort);
+  }
 
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
@@ -134,7 +144,7 @@ export function MetricTable<T>({
                 onClick={
                   href
                     ? () => {
-                        window.location.href = href;
+                        router.push(href);
                       }
                     : undefined
                 }

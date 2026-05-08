@@ -353,13 +353,15 @@ export function RankingsExplorer({ teamOptions }: Props) {
         <p className="text-sm text-[var(--ink-muted)] italic py-8 text-center">Cargando…</p>
       )}
       {rows && (
-        <MetricTable
-          columns={columns}
-          rows={rows}
-          rowKey={(r) => r.player_id}
-          rowHref={(r) => `/jugador/${r.player_id}`}
-          emptyText="Ningún jugador cumple los filtros."
-        />
+        <div className={cn('transition-opacity', loading && 'opacity-50')}>
+          <MetricTable
+            columns={columns}
+            rows={rows}
+            rowKey={(r) => r.player_id}
+            rowHref={(r) => `/jugador/${r.player_id}`}
+            emptyText="Ningún jugador cumple los filtros."
+          />
+        </div>
       )}
     </div>
   );

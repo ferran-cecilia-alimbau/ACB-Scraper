@@ -11,8 +11,9 @@
  *    métrica destacada de la vista actual.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { PlayerSummary } from '@/lib/api';
 import { MetricTable, type MetricColumn } from '@/components/metric-table';
 import { PlayerLink } from '@/components/player-link';
@@ -67,16 +68,23 @@ const POSITIONS = [
 interface Props {
   players: PlayerSummary[];
   teamOptions: string[];
-  initialTeam?: string;
 }
 
-export function PlayersExplorer({ players, teamOptions, initialTeam = '' }: Props) {
+export function PlayersExplorer({ players, teamOptions }: Props) {
+  const searchParams = useSearchParams();
   const [view, setView] = useState<ViewKey>('medias');
   const [search, setSearch] = useState('');
-  const [team, setTeam] = useState<string>(initialTeam);
+  const [team, setTeam] = useState<string>('');
   const [position, setPosition] = useState<string>('');
   const [minGames, setMinGames] = useState(5);
   const [minMinutes, setMinMinutes] = useState(10);
+
+  // Sincroniza el filtro de equipo con `?team=` (usado por Cmd-K).
+  // Solo aplica si el valor coincide exactamente con un equipo conocido.
+  useEffect(() => {
+    const t = searchParams?.get('team');
+    if (t && teamOptions.includes(t)) setTeam(t);
+  }, [searchParams, teamOptions]);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
