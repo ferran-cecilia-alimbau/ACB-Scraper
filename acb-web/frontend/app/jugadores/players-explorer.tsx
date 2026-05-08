@@ -67,12 +67,13 @@ const POSITIONS = [
 interface Props {
   players: PlayerSummary[];
   teamOptions: string[];
+  initialTeam?: string;
 }
 
-export function PlayersExplorer({ players, teamOptions }: Props) {
+export function PlayersExplorer({ players, teamOptions, initialTeam = '' }: Props) {
   const [view, setView] = useState<ViewKey>('medias');
   const [search, setSearch] = useState('');
-  const [team, setTeam] = useState<string>('');
+  const [team, setTeam] = useState<string>(initialTeam);
   const [position, setPosition] = useState<string>('');
   const [minGames, setMinGames] = useState(5);
   const [minMinutes, setMinMinutes] = useState(10);

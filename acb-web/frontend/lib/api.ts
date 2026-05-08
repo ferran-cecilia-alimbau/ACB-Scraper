@@ -280,7 +280,7 @@ export interface PlayersQuery {
   limit?: number;
 }
 
-function buildQuery(params: Record<string, string | number | undefined>): string {
+function buildQuery<T extends object>(params: T): string {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
   if (!entries.length) return '';
   const usp = new URLSearchParams();

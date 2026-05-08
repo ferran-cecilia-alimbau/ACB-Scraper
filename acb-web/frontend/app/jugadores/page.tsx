@@ -11,12 +11,20 @@ export const metadata = {
     'Estadísticas de todos los jugadores de la Liga Endesa 2025-26: medias, eficiencia, per 36 y totales. Filtros por equipo, posición y mínimo de partidos.',
 };
 
-export default async function JugadoresPage() {
+interface JugadoresPageProps {
+  searchParams?: Promise<{
+    team?: string;
+  }>;
+}
+
+export default async function JugadoresPage({ searchParams }: JugadoresPageProps) {
   const players = await getPlayers({ limit: 1000 });
+  const params = searchParams ? await searchParams : {};
   // Lista de equipos derivada de los datos (orden alfabético).
   const teamOptions = Array.from(new Set(players.map((p) => p.equipo))).sort((a, b) =>
     a.localeCompare(b, 'es'),
   );
+  const initialTeam = params.team && teamOptions.includes(params.team) ? params.team : '';
 
   return (
     <>
@@ -33,7 +41,11 @@ export default async function JugadoresPage() {
 
       <section>
         <div className="container-editorial py-10">
-          <PlayersExplorer players={players} teamOptions={teamOptions} />
+          <PlayersExplorer
+            players={players}
+            teamOptions={teamOptions}
+            initialTeam={initialTeam}
+          />
         </div>
       </section>
     </>

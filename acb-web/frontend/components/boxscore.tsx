@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { BoxScorePlayer } from '@/lib/api';
 import { teamMeta } from '@/lib/teams';
 
@@ -47,15 +48,16 @@ export function BoxScore({ team, players }: BoxScoreProps) {
             {sorted.map((p) => (
               <tr key={p.player_id}>
                 <td className="text-left">
-                  <span
+                  <Link
+                    href={`/jugador/${p.player_id}`}
                     className={
                       p.es_titular
-                        ? 'font-semibold'
-                        : 'text-[var(--ink-muted)] font-normal'
+                        ? 'font-semibold link-underline'
+                        : 'text-[var(--ink-muted)] font-normal link-underline'
                     }
                   >
                     {p.nombre}
-                  </span>
+                  </Link>
                 </td>
                 <td>{p.minutos}</td>
                 <td className="font-semibold text-[var(--ink)]">{p.puntos}</td>

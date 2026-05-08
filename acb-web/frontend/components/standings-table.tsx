@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { TeamMonogram } from '@/components/team-monogram';
 import { teamMeta } from '@/lib/teams';
 import { signed } from '@/lib/format';
@@ -50,10 +51,13 @@ export function StandingsTable({ rows, limit, compact }: StandingsTableProps) {
                 {row.pos.toString().padStart(2, '0')}
               </td>
               <td className="text-left">
-                <span className="inline-flex items-center gap-3 min-w-0">
+                <Link
+                  href={`/jugadores?team=${encodeURIComponent(row.equipo)}`}
+                  className="inline-flex items-center gap-3 min-w-0 link-underline"
+                >
                   <TeamMonogram name={row.equipo} size="sm" />
                   <span className="truncate">{meta.short}</span>
-                </span>
+                </Link>
               </td>
               <td>{row.J}</td>
               <td>{row.G}</td>
