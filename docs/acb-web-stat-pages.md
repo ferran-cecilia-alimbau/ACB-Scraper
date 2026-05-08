@@ -2,7 +2,7 @@
 
 ## Resumen
 
-Este documento define la V2 estadistica de `acb-web`, centrada en jugadores y equipos. La intencion es ampliar la web editorial actual sin convertirla en un dashboard Streamlit: paginas con datos densos, jerarquia clara, tablas legibles y contexto suficiente para un aficionado avanzado.
+Este documento define la V2 estadistica de `acb-web`, centrada en jugadores y equipos. La intencion es ampliar la web editorial actual con paginas de datos densos, jerarquia clara, tablas legibles y contexto suficiente para un aficionado avanzado.
 
 La V1 actual ya cubre portada, clasificacion, partidos, jornadas y detalle de partido. La V2 debe anadir navegacion profunda para:
 
@@ -17,7 +17,7 @@ La V1 actual ya cubre portada, clasificacion, partidos, jornadas y detalle de pa
 - Evitar rankings enganosos: aplicar filtros visibles de partidos/minutos minimos.
 - Dar contexto de liga: siempre que sea util, comparar una metrica contra media ACB o ranking relativo.
 - Mantener estetica editorial: tipografia sobria, hairlines, logos/monogramas, tablas densas pero limpias.
-- No duplicar Streamlit: nada de layout de dashboard pesado ni colecciones de graficos sin lectura.
+- Evitar layouts de dashboard pesado y colecciones de graficos sin lectura.
 
 ## Paginas V2
 
@@ -331,8 +331,7 @@ Crear o extender componentes editoriales, no componentes de dashboard generico:
 ## Fuera De Alcance Para Esta V2
 
 - Rehacer la portada.
-- Sustituir Streamlit.
+- Rehacer herramientas internas antiguas de visualizacion.
 - PBP avanzado de quintetos, clutch o posesiones como pagina principal.
 - Autenticacion, usuarios o favoritos.
 - Graficos complejos si no mejoran la lectura editorial.
-

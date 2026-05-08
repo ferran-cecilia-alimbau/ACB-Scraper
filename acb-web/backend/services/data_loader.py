@@ -1,4 +1,4 @@
-"""Carga de datos CSV — sin dependencias de Streamlit."""
+"""Carga de datos CSV para la API."""
 
 import pandas as pd
 

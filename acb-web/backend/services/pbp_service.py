@@ -1,4 +1,4 @@
-"""Puente a acb-pbp-analytics — sin dependencias de Streamlit."""
+"""Puente entre la API y acb-pbp-analytics."""
 
 import os
 import sys

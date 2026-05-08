@@ -9,7 +9,6 @@ El repositorio incluye:
 - Pipeline automatizable con Docker Compose y systemd.
 - Backend FastAPI para servir los datos procesados.
 - Web editorial en Next.js para explorar clasificacion, partidos, jugadores y rankings.
-- Dashboard Streamlit historico y prototipos de analitica avanzada.
 
 ## Proyecto no oficial
 
@@ -22,7 +21,6 @@ Los datos se obtienen de fuentes publicas disponibles en la web de ACB y se usan
 ```text
 .
 ├── acb-web/              # Web Next.js + backend FastAPI
-├── acb-dashboard/        # Dashboard Streamlit historico
 ├── acb-pbp-analytics/    # Analisis de play-by-play
 ├── scripts/              # Automatizacion y scraping batch
 ├── deploy/systemd/       # Units para ejecucion programada
