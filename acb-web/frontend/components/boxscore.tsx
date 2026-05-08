@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { BoxScorePlayer } from '@/lib/api';
+import { TeamMonogram } from '@/components/team-monogram';
 import { teamMeta } from '@/lib/teams';
 
 interface BoxScoreProps {
@@ -19,10 +20,8 @@ export function BoxScore({ team, players }: BoxScoreProps) {
 
   return (
     <section>
-      <header className="flex items-baseline gap-3 mb-4">
-        <span className="team-monogram team-monogram--sm" aria-hidden>
-          {meta.monogram}
-        </span>
+      <header className="flex items-center gap-3 mb-4">
+        <TeamMonogram name={team} size="sm" />
         <h3 className="font-serif text-xl tracking-tight m-0">{meta.short}</h3>
       </header>
 
