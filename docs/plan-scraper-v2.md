@@ -43,9 +43,9 @@ peticiones reales. El plan se apoya en cuatro fuentes:
    de `acb.com` con las mismas estructuras (`initialMatchHeader`,
    `initialStatistics`, `playerData`) que devuelve la API.
 
-Todo lo que dependa de una respuesta real se valida en la **Fase 0**. Para
-poder hacerlo desde una sesión como esta, hay que añadir `acb.com`, `www.acb.com`,
-`live.acb.com` y `api2.acb.com` a los dominios permitidos del entorno.
+**Actualización 2026-11-02:** con los dominios ya permitidos se ejecutó la
+Fase 0 contra la API real y todas las hipótesis quedaron confirmadas
+(`docs/fase0-verificacion.md`).
 
 ---
 
@@ -274,10 +274,17 @@ Tablas derivadas (`transform/`):
 
 ## 3. Fases
 
-### Fase 0. Verificación con tráfico real (medio día)
+### Fase 0. Verificación con tráfico real (medio día) — HECHA el 2026-11-02
 
-Objetivo: confirmar que la API responde como dice la especificación y capturar
-fixtures. Hay que hacerlo desde una máquina con acceso a `acb.com`.
+Resultado en `docs/fase0-verificacion.md`: las 33 rutas responden, la clave se
+extrae del bundle, y todas las reglas de consistencia se cumplen en los partidos
+de muestra. Fixtures en `tests/fixtures/api2/`. Ajustes derivados: seguir
+redirecciones y recorrer chunks JS para la clave; ignorar `playType 600`;
+`playTag 1` sin mapear; fichas de entrenador vía `player-data`; consultar
+`availableContent` antes de pedir detalle en ediciones ≤ 2019-20.
+
+Objetivo original: confirmar que la API responde como dice la especificación y
+capturar fixtures. Hay que hacerlo desde una máquina con acceso a `acb.com`.
 
 1. Comprobar `https://acb.com/robots.txt` y el aviso legal. La especificación
    indica que `robots.txt` permite `/` y que el aviso legal reclama derechos de

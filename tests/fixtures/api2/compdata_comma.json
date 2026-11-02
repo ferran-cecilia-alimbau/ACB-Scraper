@@ -1,0 +1,1 @@
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.1","title":"One or more validation errors occurred.","status":400,"errors":{"competitionIds":["The value '1,2' is not valid."]},"traceId":"00-3863713729ff7f9936f758f0ccc9ee8e-dc34e19e6ebcd074-01"}
