@@ -1,78 +1,16 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
+.venv/
+*.egg-info/
+.pytest_cache/
 
-# Environment directories
+# Datos y estado del scraper (todo se regenera o se descarga)
+data/
+
+# Entorno
 .env
-.venv
-env/
-venv/
-
-# IDE project settings
 .idea/
 .vscode/
-*.swp
-*.swo
-
-# Logs
-logs/
-*.log
-data/logs/
-data/backups/
-data/run_state/
-
-# Data files
-*.csv
-data/output/
-!data/output/.gitkeep
-
-# Chrome webdriver
-chromedriver.exe
-chromedriver
-
-# Project specific ignores
-calculate_team_stats.py
-web (test)/
-shot graph/
-extract_play_by_play.py
-
-# PySpark output
-*.crc
-*_$folder$
-
-# Temporary and backup files
-*.bak
-backup_*/
-*.tmp
-
-# OS files
 .DS_Store
-Thumbs.db
-
-# Analysis and reports
-audit_report.md
-MIGRATION_REPORT.md
-analytics/acb_analytics.py
 .claude/settings.local.json
-analytics/requirements.txt
-scripts/audit_play_by_play.py
-data/input/match_ids.json
-scripts/google-chrome-stable_current_amd64.deb
-.chrome-for-testing/
-
-# Dashboard
-acb-dashboard/__pycache__/
-acb-dashboard/.streamlit/
-
-# PBP Analytics
-acb-pbp-analytics/__pycache__/
-
-# WebDriver Manager cache
-scripts/.wdm/
-
-# Scraper v2
-data/raw/
-data/.apikey.json
-data/output/v2/
-acb_scraper.egg-info/

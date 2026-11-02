@@ -379,9 +379,9 @@ partido** (~24 por partido, ~8.000 por temporada). Se implementa con flag
 
 ### Fase 6 (opcional). Analítica derivada
 
-Portar `acb-pbp-analytics` al nuevo modelo: quintetos, on/off, posesiones,
-clutch, rachas, tiros por zona normalizada. Ahora con `playType` numérico en
-lugar de texto en castellano, lo que elimina la mayor parte del parseo frágil.
+Quintetos, on/off, posesiones, clutch, rachas, tiros por zona normalizada,
+a partir del `playType` numérico (el antiguo `acb-pbp-analytics`, en el
+historial de `main`, sirve de referencia).
 
 ### Estimación de volumen (a 1 req/s)
 
@@ -441,9 +441,8 @@ sync incremental re-pide los partidos con incidencias abiertas.
 3. Crear el paquete `acb_scraper/` con `client/`, `models/` y `store/` y hacer
    pasar un test que parsee los fixtures de `match-header` y `boxscores`.
 4. Implementar `acb sync season --competition 1 --edition 91` de extremo a extremo.
-5. Decidir si el código viejo (`main.py`, `scraper.py`, `parsers.py`,
-   `modern_acb.py`, `scripts/batch_play_by_play*.py`) se archiva en `legacy/` o
-   se elimina una vez el backend FastAPI lea de DuckDB/Parquet.
+5. (Hecho) El scraper antiguo, la web y el motor de análisis se retiraron de esta
+   rama; siguen disponibles en el historial de `main`.
 
 ---
 
@@ -578,5 +577,5 @@ stlRatio, blkPct).
 - `https://github.com/saiemgilani/sdv-swagger` → `acb-api.openapi.yaml` (2026-10-12).
 - CRAN `BAwiR` 1.5.6 (2026-10-13): `do_scrape_shots_acb.R`, `do_scrape_days_acb.R`.
 - Rutas de `acb.com` / `live.acb.com` indexadas públicamente (apéndice B).
-- Código actual del repositorio (`modern_acb.py`, `scripts/get_match_ids.py`,
-  `scripts/batch_play_by_play_v2.py`, `catalogo_acciones.txt`).
+- Scraper original del repositorio (en el historial de `main`: `modern_acb.py`,
+  `scripts/get_match_ids.py`, `scripts/batch_play_by_play_v2.py`, `catalogo_acciones.txt`).

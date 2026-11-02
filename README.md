@@ -1,95 +1,53 @@
 # ACB Scraper
 
-Proyecto de portfolio para extraer, transformar y visualizar datos publicos de la Liga Endesa ACB.
+Descarga **cruda** (JSON) de la API que alimenta acb.com y live.acb.com:
+partidos (cabecera, box score, play-by-play, tiros con coordenadas), calendarios,
+clasificaciones, brackets, plantillas, estadísticas de equipo y fichas de jugadores
+y técnicos de Liga Endesa, Copa del Rey y Supercopa, desde 1983-84.
 
-El repositorio incluye:
+Pensado para correr desatendido en un servidor doméstico y servir de dataset para
+proyectos de ingeniería de datos. No transforma nada: cada respuesta se guarda tal
+cual en `data/raw/`.
 
-- Scraper Python para estadisticas de partidos, equipos y jugadores.
-- Extraccion y analisis de play-by-play.
-- Pipeline automatizable con Docker Compose y systemd.
-- Backend FastAPI para servir los datos procesados.
-- Web editorial en Next.js para explorar clasificacion, partidos, jugadores y rankings.
-
-## Scraper v2 (recomendado)
-
-El scraper original parseaba HTML y ya no refleja la web actual. La versión nueva,
-en `acb_scraper/`, consume directamente la API JSON de la ACB y guarda cada respuesta
-cruda en `data/raw/`. Instalación, uso y despliegue como servicio en
-[`acb_scraper/README.md`](acb_scraper/README.md); diseño y verificación en
-`docs/plan-scraper-v2.md` y `docs/fase0-verificacion.md`.
+## Uso rápido
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e .
-.venv/bin/acb-scraper backfill      # histórico completo, reanudable
-.venv/bin/acb-scraper sync          # temporada en curso
 ```
 
-## Proyecto no oficial
+```bash
+.venv/bin/acb-scraper backfill      # histórico completo (10-14 h a 1 req/s), reanudable
+```
 
-Este proyecto no esta afiliado, patrocinado ni aprobado por ACB, Liga Endesa, clubes o entidades relacionadas.
+```bash
+.venv/bin/acb-scraper sync          # temporada en curso; programar a diario
+```
 
-Los datos se obtienen de fuentes publicas disponibles en la web de ACB y se usan con fines educativos, tecnicos y de portfolio. Las marcas, nombres de equipos y logotipos pertenecen a sus respectivos propietarios. Si se despliega publicamente, conviene revisar el uso de logotipos y sustituirlos por monogramas propios si se quiere minimizar riesgo de marca.
+```bash
+.venv/bin/acb-scraper status        # qué hay descargado y qué falta
+```
+
+Manual completo (opciones, garantías, formato de los datos, despliegue con
+systemd): [`acb_scraper/README.md`](acb_scraper/README.md).
 
 ## Estructura
 
 ```text
-.
-├── acb-web/              # Web Next.js + backend FastAPI
-├── acb-pbp-analytics/    # Analisis de play-by-play
-├── scripts/              # Automatizacion y scraping batch
-├── deploy/systemd/       # Units para ejecucion programada
-├── data/input/           # IDs de partidos versionados
-└── docs/                 # Planes y specs tecnicas
+acb_scraper/        paquete Python y su README
+deploy/systemd/     servicio de backfill, servicio y timer de sync
+docs/               plan de diseño y verificación contra la API real
+tests/              tests offline sobre respuestas reales capturadas
 ```
 
-Los CSVs generados, logs, backups y play-by-play locales estan ignorados por Git.
-
-## Ejecucion local
-
-Backend:
+## Tests
 
 ```bash
-python -m uvicorn acb-web.backend.main:app --port 8000 --reload
+.venv/bin/pip install -e ".[dev]" && .venv/bin/pytest
 ```
 
-Frontend:
+## Proyecto no oficial
 
-```bash
-cd acb-web/frontend
-npm install
-npm run dev
-```
-
-Web: `http://localhost:3000`
-
-## Automatizacion
-
-El pipeline de actualizacion esta preparado para ejecutarse con Docker Compose:
-
-```bash
-docker compose build
-docker compose run --rm scraper python scripts/update_all.py --dry-run
-docker compose run --rm scraper python scripts/update_all.py --verify-pbp
-```
-
-En `deploy/systemd/` hay un service y timer para lanzar la actualizacion diaria en un servidor Linux.
-
-## Seguridad y datos locales
-
-Antes de publicar cambios, revisa que no se hayan anadido por error:
-
-- `.env` o ficheros de credenciales.
-- `data/output/`, `data/play_by_play/`, `data/logs/` o `data/backups/`.
-- caches como `.venv/`, `.next/`, `node_modules/` o `scripts/.wdm/`.
-
-## Capturas de Pantalla
-
-<img width="1470" height="832" alt="Captura de pantalla 2026-05-08 a las 18 18 14" src="https://github.com/user-attachments/assets/fb905946-f8cf-4f02-b147-1a5f9779e6d3" />
-<img width="1470" height="830" alt="Captura de pantalla 2026-05-08 a las 18 18 36" src="https://github.com/user-attachments/assets/054e1347-62d4-4f04-b052-b2e2a6c00dad" />
-<img width="1466" height="835" alt="Captura de pantalla 2026-05-08 a las 18 19 10" src="https://github.com/user-attachments/assets/cf7483a9-59e2-45c5-b891-b44dcd061064" />
-<img width="1470" height="842" alt="Captura de pantalla 2026-05-08 a las 18 18 50" src="https://github.com/user-attachments/assets/87f9cb18-79cc-472e-847d-9c8e2a9a3937" />
-
-
-## Licencia
-
-No se ha definido una licencia open source explicita. Sin licencia, el codigo queda protegido por copyright por defecto.
+No está afiliado a la ACB. Usa una API pública no documentada, a una petición por
+segundo, con fines personales y educativos. Las marcas y logotipos pertenecen a sus
+propietarios. El aviso legal de acb.com reclama derechos sobre su base de datos: no
+redistribuyas volcados masivos.
