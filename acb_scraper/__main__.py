@@ -125,6 +125,19 @@ def cmd_status(args: argparse.Namespace) -> int:
         d = raw / route
         n = sum(1 for _ in d.glob("*.json.gz")) if d.exists() else 0
         print(f"  {label:<22} {n}")
+    # Completitud: partidos FINALIZED según los calendarios descargados sin box score en disco.
+    from .client import RawStore
+    store = RawStore(raw)
+    finalized, missing = 0, []
+    for _stem, cal in store.iter_route("/seasondata/Calendar/season-calendar"):
+        for r in cal.get("rounds") or []:
+            for m in r.get("matches") or []:
+                if m.get("matchStatus") == "FINALIZED":
+                    finalized += 1
+                    if not store.path("/matchdata/Result/boxscores", {"matchId": m["id"]}).exists():
+                        missing.append(m["id"])
+    print(f"partidos finalizados en los calendarios: {finalized}; sin descargar: {len(missing)}"
+          + (f" (p. ej. {missing[:5]})" if missing else ""))
     runs = args.data_dir / "logs" / "runs.jsonl"
     if runs.exists():
         lines = runs.read_text(encoding="utf-8").strip().splitlines()
