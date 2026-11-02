@@ -70,3 +70,8 @@ acb-pbp-analytics/__pycache__/
 
 # WebDriver Manager cache
 scripts/.wdm/
+
+# Scraper v2
+data/raw/
+data/.apikey.json
+data/output/v2/
