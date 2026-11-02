@@ -75,3 +75,4 @@ scripts/.wdm/
 data/raw/
 data/.apikey.json
 data/output/v2/
+acb_scraper.egg-info/
