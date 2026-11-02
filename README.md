@@ -10,6 +10,20 @@ El repositorio incluye:
 - Backend FastAPI para servir los datos procesados.
 - Web editorial en Next.js para explorar clasificacion, partidos, jugadores y rankings.
 
+## Scraper v2 (recomendado)
+
+El scraper original parseaba HTML y ya no refleja la web actual. La versión nueva,
+en `acb_scraper/`, consume directamente la API JSON de la ACB y guarda cada respuesta
+cruda en `data/raw/`. Instalación, uso y despliegue como servicio en
+[`acb_scraper/README.md`](acb_scraper/README.md); diseño y verificación en
+`docs/plan-scraper-v2.md` y `docs/fase0-verificacion.md`.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -e .
+.venv/bin/acb-scraper backfill      # histórico completo, reanudable
+.venv/bin/acb-scraper sync          # temporada en curso
+```
+
 ## Proyecto no oficial
 
 Este proyecto no esta afiliado, patrocinado ni aprobado por ACB, Liga Endesa, clubes o entidades relacionadas.

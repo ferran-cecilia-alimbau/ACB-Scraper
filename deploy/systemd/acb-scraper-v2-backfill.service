@@ -1,0 +1,21 @@
+# Descarga histórica completa (una vez, o para rellenar huecos). Reanudable: se puede parar y relanzar.
+#   sudo systemctl start acb-scraper-v2-backfill
+#   journalctl -u acb-scraper-v2-backfill -f
+[Unit]
+Description=ACB scraper v2: backfill histórico
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=acb
+WorkingDirectory=/opt/acb-scraper
+Environment=ACB_DATA_DIR=/opt/acb-scraper/data
+Environment=ACB_CONTACT=tu-email@example.com
+ExecStart=/opt/acb-scraper/.venv/bin/acb-scraper backfill --competitions 1,2,3
+KillSignal=SIGTERM
+TimeoutStopSec=90
+Nice=15
+# Si la API no está disponible (salida 2), reintentar en una hora.
+Restart=on-failure
+RestartSec=3600

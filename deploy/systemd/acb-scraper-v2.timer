@@ -1,0 +1,11 @@
+[Unit]
+Description=ACB scraper v2: sync diario
+
+[Timer]
+# Todas las noches a las 04:30; si el equipo estaba apagado, se ejecuta al arrancar.
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

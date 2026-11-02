@@ -1,0 +1,18 @@
+# Sincronización incremental del scraper v2. Instalar en /etc/systemd/system/.
+# Ajusta User, WorkingDirectory y la ruta del venv.
+[Unit]
+Description=ACB scraper v2: sync incremental
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=acb
+WorkingDirectory=/opt/acb-scraper
+Environment=ACB_DATA_DIR=/opt/acb-scraper/data
+Environment=ACB_CONTACT=tu-email@example.com
+ExecStart=/opt/acb-scraper/.venv/bin/acb-scraper sync --competitions 1,2,3
+# Parada limpia: el scraper termina la petición en curso y sale.
+KillSignal=SIGTERM
+TimeoutStopSec=90
+Nice=10
