@@ -140,6 +140,35 @@ def test_client_persistent_500_is_item_error_not_outage(tmp_path, monkeypatch):
     assert c.raw.count("/seasondata/PlayerProfile/career") == 0  # no se cachea: se reintenta en la próxima ejecución
 
 
+def test_client_tolerated_500_is_cached_as_marker(tmp_path, monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    n = {"calls": 0}
+
+    def handler(req):
+        n["calls"] += 1
+        return httpx.Response(500)
+
+    c = make_client(tmp_path, handler)
+    assert c.player_career(20300929, tolerate_server_error=True) == {"_status": 500}
+    assert c.player_career(20300929, tolerate_server_error=True) == {"_status": 500}
+    assert n["calls"] == 3  # 3 intentos la primera vez, caché la segunda
+
+
+def test_sync_people_counts_partial_persons(tmp_path, monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    def handler(req):
+        if "career" in req.url.path and req.url.params["playerLicenceId"] == "20300929":
+            return httpx.Response(500)
+        return httpx.Response(200, json={})
+
+    c = make_client(tmp_path, handler)
+    stats = backfill.RunStats()
+    backfill.sync_people(c, {20300929, 20209407}, stats, max_age_days=30)
+    assert stats.people == 2 and stats.people_partial == 1
+    assert c.raw.count("/seasondata/PlayerProfile/career") == 2
+
+
 def test_client_aborts_after_consecutive_failures(tmp_path, monkeypatch):
     monkeypatch.setattr(time, "sleep", lambda s: None)
 

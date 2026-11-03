@@ -31,6 +31,7 @@ class RunStats:
     matches_pending: int = 0
     match_errors: int = 0
     people: int = 0
+    people_partial: int = 0  # alguna ruta de la persona devuelve 5xx de forma estable (p. ej. career del staff)
     licences: set[int] = field(default_factory=set)
 
     def as_dict(self) -> dict:
@@ -140,12 +141,13 @@ def sync_edition(client: AcbClient, competition_id: int, edition_id: int, detail
 def sync_people(client: AcbClient, licences: set[int], stats: RunStats, max_age_days: float) -> None:
     todo = sorted(licences)
     log.info("fichas de personas: %d licencias (refresco si > %.0f días)", len(todo), max_age_days)
+    kw = {"max_age_days": max_age_days, "tolerate_server_error": True}
     for i, lic in enumerate(todo, 1):
         try:
-            client.player_data(lic, max_age_days=max_age_days)
-            client.player_stats(lic, max_age_days=max_age_days)
-            client.player_career(lic, max_age_days=max_age_days)
+            results = (client.player_data(lic, **kw), client.player_stats(lic, **kw), client.player_career(lic, **kw))
             stats.people += 1
+            if any(isinstance(r, dict) and r.get("_status", 0) >= 500 for r in results):
+                stats.people_partial += 1
         except ApiError as exc:
             log.warning("persona %s: %s", lic, exc)
         if i % 250 == 0:

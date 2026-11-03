@@ -188,10 +188,14 @@ class AcbClient:
             self._check_stop()
             time.sleep(1)
 
-    def get(self, route: str, refresh: bool = False, max_age_days: float | None = None, **params: Any) -> Any:
+    def get(self, route: str, refresh: bool = False, max_age_days: float | None = None,
+            tolerate_server_error: bool = False, **params: Any) -> Any:
         """JSON de la ruta. Usa la caché salvo que `refresh` sea True o el fichero supere `max_age_days`.
 
-        204 y 404 devuelven un marcador {"_status": n} (también cacheado).
+        204 y 404 devuelven un marcador {"_status": n} (también cacheado). Con `tolerate_server_error`,
+        un 5xx persistente también se guarda como marcador {"_status": 5xx} en vez de lanzar ApiError:
+        la API lo devuelve de forma estable para algunas personas (p. ej. `career` del staff), y así no se
+        reintenta en cada ejecución hasta que el marcador caduque por `max_age_days`.
         """
         params = {k: v for k, v in params.items() if v is not None}
         if not refresh:
@@ -201,7 +205,14 @@ class AcbClient:
                 if cached is not None:
                     self.cache_hits += 1
                     return cached
-        status, payload = self._request(route, params)
+        try:
+            status, payload = self._request(route, params)
+        except ApiError as exc:
+            if tolerate_server_error and exc.status >= 500:
+                log.info("HTTP %s estable en %s %s; se guarda marcador", exc.status, route, params)
+                payload = {"_status": exc.status}
+            else:
+                raise
         self.raw.put(route, params, payload)
         return payload
 
